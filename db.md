@@ -42,6 +42,7 @@
     (An instance of this table represents a leak)
     - `data_leak_id` (UUID)
     - `leak` (string) — e.g., `info@example.com:password`
+    - `file_name` (string)
     - `email_id` (UUID)
 
 
@@ -136,6 +137,7 @@ Table emails_data_breaches {
 Table data_leaks {
     data_leak_id uuid [default: "gen_random_uuid()", primary key]
     leak varchar [not null]
+    file_name varchar [not null]
     email_id uuid [ref: > emails.email_id]
 }
 ```
@@ -189,6 +191,7 @@ CREATE TABLE emails_data_breaches (
 CREATE TABLE data_leaks (
     data_leak_id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     leak VARCHAR NOT NULL,
+    file_name VARCHAR,
     email_id uuid REFERENCES emails(email_id)
 );
 ```
