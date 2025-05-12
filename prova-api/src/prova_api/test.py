@@ -4,14 +4,17 @@ import os
 import re
 import zipfile
 import csv
+from typeguard import typechecked
 
 EMAIL_WITHOUT_DOMAIN_REGEX = r"[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`{|}~-]+)*@"
 SERVICES_EMPLOYED = [
-    "pwned",
+    "haveibeenpwned",
     "intelx",
 ]
 BASE_DIR = os.path.join(os.path.expanduser("~"), "prove")
+HAVEIBEENPWNED_REQUEST_DELAY_IN_SECONDS = 1
 
+@typechecked
 def retrieve_base_urls() -> dict:
     base_urls = dict()
 
@@ -29,6 +32,8 @@ def retrieve_base_urls() -> dict:
     
     return base_urls
 
+
+@typechecked
 def retrieve_api_keys() -> dict:
     api_keys = dict()
     try:
@@ -47,6 +52,8 @@ def retrieve_api_keys() -> dict:
 
     return api_keys
 
+
+@typechecked
 class IntelX:
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -60,15 +67,16 @@ class IntelX:
         maxresults: int         # The maximum number of results to return
         sort: int               # The sorting order (0 to 4)
         media: int              # The media type (0 to 24) 
-        api_key: str            # The API key to use for authentication
 
     It returns the id to be used to retrieve the search results
     '''
-    def search(self, term: str, buckets: list[str] = None, maxresults: int = 1000, sort: int = 2, media: int = 0) -> str:
+    def intelligent_search(self, term: str, buckets = None, maxresults: int = 1000, sort: int = 2, media: int = 0) -> str:
         # TODO: Validation
 
         if buckets is None:
             buckets = []
+
+        url = f"{self.base_url}/intelligent/search"
 
         payload = {
             "term": term,
@@ -83,10 +91,12 @@ class IntelX:
             "terminate": []
         }
 
+        headers = {"x-key": self.api_key}
+
         try:
             result = http.post(
-                url=f"{self.base_url}/intelligent/search",
-                headers={"x-key": self.api_key},
+                url=url,
+                headers=headers,
                 json=payload,
                 timeout=10
             )
@@ -100,16 +110,14 @@ class IntelX:
         except Exception as e:
             print(f"Unexpected error while performing search request: {e}")
         
-
     '''
     The following function is used to export the search results from IntelX API.
     It takes the following parameters:
         search_id: str      # The search ID to retrieve results for
         limit: int          # The number of results to retrieve
         filetype: str       # The file type to export ("csv" or "zip")
-        api_key: str        # The API key to use for authentication
     '''
-    def search_export(self, search_id: str, filetype: str, limit: int = 1000) -> str:
+    def intelligent_search_export(self, search_id: str, filetype: str, limit: int = 1000) -> bytes:
         # TODO: Validation
 
         if filetype not in ["csv", "zip"]:
@@ -121,6 +129,7 @@ class IntelX:
             f = 1           
 
         url = f"{self.base_url}/intelligent/search/export"
+        
         params={
             "id": search_id,
             "f": f,
@@ -136,19 +145,142 @@ class IntelX:
             )
             result.raise_for_status()   
 
-            # Writes to disk the search results (as a CSV or ZIP file)
-            filename = f"intelx_search_{search_id}.{filetype}"
-            with open(filename, "wb") as f:
-                f.write(result.content)
-                print(f"Search results exported successfully to {filename}")   
-            return filename     
+            return result.content    
                 
         except http.exceptions.RequestException as e:       
             print(f"Network error during search export request: {e}")
         except Exception as e:
             print(f"Unexpected error while performing search export request: {e}")
-### END CLASS INTELX ###
 
+
+    '''
+    The following function is used to perform a search in the phonebook using the IntelX API.
+    It takes the following parameters:
+        term: str               # The search term to use (e.g., the domain)
+        maxresults: int         # The maximum number of results to return
+        media: int              # The media type (0 to 24)
+        terminate: list[str]    # The list containing the previous search ids to terminate
+        target: int             # The target type (e.g., 0 for all, 1 is for domains, etc.)
+    It returns the id to be used to retrieve the search results
+    '''
+    def phonebook_search(self, term: str, maxresults: int = 1000, media: int = 0, terminate: list[str] = [], target: int = 0) -> str:
+        url = f"{self.base_url}/phonebook/search"
+
+        payload = {
+            "term":term,
+            "maxresults":maxresults,
+            "media":media,
+            "terminate":terminate,
+            "target":target
+        }
+
+        headers = {"x-key": self.api_key}
+
+        try:
+            result = http.post(
+                url=url,
+                headers=headers,
+                json=payload,
+                timeout=10
+            )
+            result.raise_for_status()                       # Raises an HTTPError for bad responses
+            search_id = result.json().get("id")             # The search ID to retrieve results for
+            return search_id
+        except http.exceptions.RequestException as e:
+            print(f"Network error during search request: {e}")
+        except json.JSONDecodeError:
+            print("Failed to parse search response JSON.")
+        except Exception as e:
+            print(f"Unexpected error while performing search request: {e}")
+
+
+    '''
+    The following function is used to retrieve the search results from the phonebook in IntelX API.
+    It takes the following parameters:
+        search_id: str      # The search ID to retrieve results for
+        limit: int          # The number of results to retrieve
+
+    It returns the search results as a dictionary.
+    '''
+    def phonebook_search_result(self, search_id: str, limit: int = 1000) -> dict:
+        url = f"{self.base_url}/phonebook/search/result"
+
+        params = {
+            "id": search_id,
+            "limit": limit
+        }
+        headers = {"x-key": self.api_key}
+
+        try:
+            result = http.get(
+                url=url,
+                params=params,
+                headers=headers,
+                timeout=10
+            )
+            result.raise_for_status()                       # Raises an HTTPError for bad responses
+            search_result = result.json()
+            return search_result
+        except http.exceptions.RequestException as e:
+            print(f"Network error during search request: {e}")
+        except json.JSONDecodeError:
+            print("Failed to parse search response JSON.")
+        except Exception as e:
+            print(f"Unexpected error while performing search request: {e}")
+
+
+#################################### END CLASS INTELX ####################################
+
+@typechecked
+class HaveIBeenPwned:
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://haveibeenpwned.com/api/v3"
+    
+
+    def get_breaches_from_account(self, account: str, truncate_response: bool) -> list[dict]:
+        url = f"{self.base_url}/breachedaccount/{account}"
+        headers = {"hibp-api-key": self.api_key}
+
+        breaches = list()
+
+        params = {
+            "truncateResponse": truncate_response
+        }
+
+        try:
+            result = http.get(
+                url=url,
+                params=params,
+                headers=headers 
+            )
+            result.raise_for_status()
+            breaches = [breach for breach in json.loads(result.text)]
+
+            return breaches
+
+        except http.exceptions.RequestException as e:      
+            status_code = e.response.status_code
+            if status_code == 404:
+                print(f"{account} was not found in any breaches")
+            elif status_code == 429:
+                print("Too many requests: slow down!")
+        except Exception as e:
+            print(f"Unexpected error while performing search export request: {e}")
+        return breaches 
+        
+#################################### END CLASS HAVEIBEENPWNED ####################################
+
+
+class C99:
+    def __init__(self, api_key: str):
+        self.api_key = api_key 
+
+    def get_all_subdomains(self, domain: str):      
+        pass
+#################################### END CLASS C99 ####################################
+
+@typechecked
 def get_credentials_from_file(file_path: str, credential_regex: str) -> list[str]:
     credentials = list()
 
@@ -172,6 +304,8 @@ def get_credentials_from_file(file_path: str, credential_regex: str) -> list[str
 
     return credentials
 
+
+@typechecked
 def get_system_ids_names_association(folder_path: str) -> dict:
     system_ids_names = dict()
 
@@ -197,6 +331,8 @@ def get_system_ids_names_association(folder_path: str) -> dict:
         print(f"An unexpected error occurred: {e}")
     return system_ids_names
 
+
+@typechecked
 def start_credentials_retrieving_from_folder(folder_path: str, credential_regex: str):
     # System ID (str) to breach file name (str) association
     system_ids_names = get_system_ids_names_association(folder_path)
@@ -234,6 +370,7 @@ def start_credentials_retrieving_from_folder(folder_path: str, credential_regex:
 
     return credentials
 
+@typechecked
 def save_dict_to_json_file(dictionary: dict, file_path: str):
     try:
         with open(file_path, "w") as f:
@@ -246,13 +383,20 @@ def save_dict_to_json_file(dictionary: dict, file_path: str):
         print(f"An unexpected error occurred: {e}")
 
 
-def create_working_directories(domain: str):
+@typechecked
+def create_working_directories(domain: str, services: list[str]):
     # Create a directory for the domain if it doesn't exist
     if not os.path.exists(os.path.join(BASE_DIR, domain)):
         os.makedirs(os.path.join(BASE_DIR, domain))
         print(f"Created directory: {os.path.join(BASE_DIR, domain)}")
 
+    for service in services:
+        dir_path = os.path.join(BASE_DIR, domain, service)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
 
+
+@typechecked
 def get_breached_emails(credentials_path: str) -> set[str]:
     # If the credential.json file exists
     if os.path.exists(credentials_path):
@@ -276,20 +420,37 @@ def get_breached_emails(credentials_path: str) -> set[str]:
         
     return set()
 
+
 def main():
+    
     api_keys = retrieve_api_keys()
     
     intelx = IntelX(api_key=api_keys["intelx"])
+    haveibeenpwned = HaveIBeenPwned(api_key=api_keys["haveibeenpwned"])
 
     domain = "internet-idee.net"
     
+    search_id = intelx.phonebook_search(term=domain, target=1)
+
+    if search_id is None:
+        print("Error: Search ID is None")
+        return
+    search_result = intelx.phonebook_search_result(search_id=search_id, limit=1000)
+    if search_result is None:
+        print("Error: Search result is None")
+        return
+    save_dict_to_json_file(
+        dictionary=search_result,
+        file_path="phonebook_search_result.json"
+    )
+
+    '''
     credential_regex = rf"{EMAIL_WITHOUT_DOMAIN_REGEX}{domain}:\S+"
 
     # Create a directory for the domain if it doesn't exist
-    create_working_directories(domain)
+    create_working_directories(domain, SERVICES_EMPLOYED)
 
-    '''
-    search_id = intelx.search(term=domain, media=0)
+    search_id = intelx.intelligent_search(term=domain, media=0, maxresults=5000)
 
     if search_id is None:
         print("Error: Search ID is None")
@@ -297,12 +458,18 @@ def main():
     
     filetype = "zip"  # or "csv"
 
-    filename = intelx.search_export(search_id=search_id, limit=100, filetype=filetype)
+    content = intelx.intelligent_search_export(search_id=search_id, limit=5000, filetype=filetype)
 
-    if filename is None:
+    if content is None:
         print("Error: No file name returned")
         return
 
+    # Writes to disk the search results (as a CSV or ZIP file)
+    filename = f"intelx_search_{search_id}.{filetype}"
+    with open(filename, "wb") as f:
+        f.write(content)
+        print(f"Search results exported successfully to {filename}")   
+    
     if filetype == "zip":
         try:
             with zipfile.ZipFile(filename, "r") as zip_file:
@@ -318,22 +485,37 @@ def main():
             print(f"An unexpected error occurred: {e}")      
     elif filetype == "csv":
         pass
-    '''
-    # Move this under the multiline comment when not using only local files
+    
+
     intelx_breach_files = os.path.join(BASE_DIR, domain, "intelx", "breach_files")
+    credentials_path = os.path.join(BASE_DIR, domain, "intelx", "credentials.json")
     if os.path.exists(intelx_breach_files):
         extracted_credentials = start_credentials_retrieving_from_folder(intelx_breach_files, credential_regex)
 
         save_dict_to_json_file(
             dictionary=extracted_credentials,
-            file_path=os.path.join(BASE_DIR, domain, "intelx", f"credentials.json")
-        )
-    
+            file_path=credentials_path
+        )   
 
-    credentials_path = os.path.join(BASE_DIR, domain, "intelx", f"credentials.json")
+
     # Extract all the emails from the dataleaks
     breached_emails = get_breached_emails(credentials_path)
-    print(breached_emails)
+    if os.path.exists(credentials_path):
+        breaches_path = os.path.join(BASE_DIR, domain, "haveibeenpwned", "breached_accounts.json")
+        emails_breaches = dict()
+
+        for email in breached_emails:
+            breaches = haveibeenpwned.get_breaches_from_account(email, False)
+            emails_breaches[email] = breaches
+
+            # Necessary since the api key we are provided with has a rate limit
+            __import__("time").sleep(HAVEIBEENPWNED_REQUEST_DELAY_IN_SECONDS)
+        
+        save_dict_to_json_file(
+            dictionary=emails_breaches,
+            file_path=breaches_path
+        )
+    '''
 
 if __name__ == "__main__":
     main()
