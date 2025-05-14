@@ -1,15 +1,23 @@
+from re import search
+from enum import Enum
+from typeguard import typechecked
+
 import requests as http
 import json
 import os
 import re
 import zipfile
 import csv
-from typeguard import typechecked
+
+import socket
+
 
 EMAIL_WITHOUT_DOMAIN_REGEX = r"[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`{|}~-]+)*@"
 SERVICES_EMPLOYED = [
     "haveibeenpwned",
     "intelx",
+    "c99",
+    "abuseipdb"
 ]
 BASE_DIR = os.path.join(os.path.expanduser("~"), "prove")
 HAVEIBEENPWNED_REQUEST_DELAY_IN_SECONDS = 1
@@ -72,7 +80,7 @@ class IntelX:
     '''
     def intelligent_search(self, term: str, buckets = None, maxresults: int = 1000, sort: int = 2, media: int = 0) -> str:
         # TODO: Validation
-
+        search_id = None
         if buckets is None:
             buckets = []
 
@@ -102,14 +110,13 @@ class IntelX:
             )
             result.raise_for_status()                       # Raises an HTTPError for bad responses
             search_id = result.json().get("id")             # The search ID to retrieve results for
-            return search_id
         except http.exceptions.RequestException as e:
             print(f"Network error during search request: {e}")
         except json.JSONDecodeError:
             print("Failed to parse search response JSON.")
         except Exception as e:
             print(f"Unexpected error while performing search request: {e}")
-        
+        return search_id
     '''
     The following function is used to export the search results from IntelX API.
     It takes the following parameters:
@@ -117,7 +124,7 @@ class IntelX:
         limit: int          # The number of results to retrieve
         filetype: str       # The file type to export ("csv" or "zip")
     '''
-    def intelligent_search_export(self, search_id: str, filetype: str, limit: int = 1000) -> bytes:
+    def intelligent_search_export(self, search_id: str, filetype: str, limit: int = 1000) -> bytes | None:
         # TODO: Validation
 
         if filetype not in ["csv", "zip"]:
@@ -126,7 +133,9 @@ class IntelX:
         if filetype == "csv":
             f = 0
         elif filetype == "zip":
-            f = 1           
+            f = 1
+        else:
+            raise ValueError("Invalid file type. Must be 'csv' or 'zip'.")
 
         url = f"{self.base_url}/intelligent/search/export"
         
@@ -151,6 +160,7 @@ class IntelX:
             print(f"Network error during search export request: {e}")
         except Exception as e:
             print(f"Unexpected error while performing search export request: {e}")
+        return None
 
 
     '''
@@ -163,7 +173,10 @@ class IntelX:
         target: int             # The target type (e.g., 0 for all, 1 is for domains, etc.)
     It returns the id to be used to retrieve the search results
     '''
-    def phonebook_search(self, term: str, maxresults: int = 1000, media: int = 0, terminate: list[str] = [], target: int = 0) -> str:
+    def phonebook_search(self, term: str, maxresults: int = 1000, media: int = 0, terminate=None, target: int = 0) -> str:
+        if terminate is None:
+            terminate = []
+
         url = f"{self.base_url}/phonebook/search"
 
         payload = {
@@ -192,6 +205,7 @@ class IntelX:
             print("Failed to parse search response JSON.")
         except Exception as e:
             print(f"Unexpected error while performing search request: {e}")
+        return None
 
 
     '''
@@ -204,6 +218,7 @@ class IntelX:
     '''
     def phonebook_search_result(self, search_id: str, limit: int = 1000) -> dict:
         url = f"{self.base_url}/phonebook/search/result"
+        search_result = dict()
 
         params = {
             "id": search_id,
@@ -220,13 +235,13 @@ class IntelX:
             )
             result.raise_for_status()                       # Raises an HTTPError for bad responses
             search_result = result.json()
-            return search_result
         except http.exceptions.RequestException as e:
             print(f"Network error during search request: {e}")
         except json.JSONDecodeError:
             print("Failed to parse search response JSON.")
         except Exception as e:
             print(f"Unexpected error while performing search request: {e}")
+        return search_result
 
 
 #################################### END CLASS INTELX ####################################
@@ -274,11 +289,138 @@ class HaveIBeenPwned:
 
 class C99:
     def __init__(self, api_key: str):
-        self.api_key = api_key 
+        self.api_key = api_key
+        self.base_url = "https://api.c99.nl"
 
-    def get_all_subdomains(self, domain: str):      
-        pass
+    '''
+    The following function is used to perform a subdomains search.
+    It takes the following parameters:
+        domain: str               
+        
+    It returns the subdomains found for the given domain
+    '''
+    def subdomain_finder(self, domain: str) -> list[str]:
+        subdomains = list()
+        url = f"{self.base_url}/subdomainfinder"
+
+        # Here we are forced to write the params string manually since json parameter does not accept values
+        params = f"key={self.api_key}&domain={domain}&json"
+
+        try:
+            result = http.get(
+                url=url,
+                params=params,
+                timeout=10
+            )
+            result.raise_for_status()                       # Raises an HTTPError for bad responses
+
+            search_result = json.loads(result.text)
+
+            # Extract just the subdomains from the response
+            subdomains = [subdomain["subdomain"] for subdomain in search_result["subdomains"]]
+
+        except http.exceptions.RequestException as e:
+            print(f"Network error during search request: {e}")
+        except json.JSONDecodeError:
+            print("Failed to parse search response JSON.")
+        except Exception as e:
+            print(f"Unexpected error while performing search request: {e}")
+        return subdomains
+
+
 #################################### END CLASS C99 ####################################
+
+
+@typechecked
+class AbuseIPDB:
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://api.abuseipdb.com/api/v2"
+        self.__report_categories = {
+            1: "DNS Compromise",
+            2: "DNS Poisoning",
+            3: "Fraud Orders",
+            4: "DDoS Attack",
+            5: "FTP Brute-Force",
+            6: "Ping of Death",
+            7: "Phishing",
+            8: "Fraud VoIP",
+            9: "Open Proxy",
+            10: "Web Spam",
+            11: "Email Spam",
+            12: "Blog Spam",
+            13: "VPN IP",
+            14: "Port Scan",
+            15: "Hacking",
+            16: "SQL Injection",
+            17: "Spoofing",
+            18: "Brute-Force",
+            19: "Bad Web Bot",
+            20: "Exploited Host",
+            21: "Web App Attack",
+            22: "SSH",
+            23: "IoT Targeted"
+        }
+
+    '''
+    The following function is used to check if an IP address has been reported.
+    It takes the following parameters:
+        ip: str               # The IP address to check
+    It returns a list of reports for the given IP address.
+    '''
+    def check_ip(self, ip: str) -> list:
+        url = f'{self.base_url}/check'
+
+        reports = list()
+
+        querystring = {
+            'ipAddress': ip,
+            'maxAgeInDays': '365',
+            'verbose': True
+        }
+
+        headers = {
+            'Accept': 'application/json',
+            'Key': self.api_key
+        }
+
+        response = http.get(
+            url,
+            headers=headers,
+            params=querystring
+        )
+
+        # Formatted output
+        decoded_response = json.loads(response.text)
+
+        for report in decoded_response["data"]["reports"]:
+            reported_at = report["reportedAt"]
+            comment = report["comment"]
+            # Simply convert categories numbers to labels
+            categories = [self.__report_categories[category_number] for category_number in report["categories"]]
+
+
+            reports.append({
+                "reportedAt": reported_at,
+                "comment": comment,
+                "categories": categories
+            })
+
+        return reports
+
+    '''
+    The following function is used to check a list of IP addresses for reports.
+    It takes the following parameters:
+        ips: list[str]        # The list of IP addresses to check
+    It returns a dictionary with the IP addresses as keys and the reports as values.
+    '''
+    def get_abused_ips_reports(self, ips: list[str]) -> dict:
+        reports = dict()
+        for ip in ips:
+            report = self.check_ip(ip)
+            if len(report) > 0:
+                reports[ip] = report
+        return reports
 
 @typechecked
 def get_credentials_from_file(file_path: str, credential_regex: str) -> list[str]:
@@ -288,7 +430,7 @@ def get_credentials_from_file(file_path: str, credential_regex: str) -> list[str
     if len(credential_regex) > 500:
         print("Error: Credential regex is too long.")
         return credentials
-    
+
     try:
         with open(file_path, "r") as f:
             for line in f:
@@ -306,7 +448,7 @@ def get_credentials_from_file(file_path: str, credential_regex: str) -> list[str
 
 
 @typechecked
-def get_system_ids_names_association(folder_path: str) -> dict:
+def get_system_ids_names_association(folder_path: str) -> dict | None:
     system_ids_names = dict()
 
     try:
@@ -421,15 +563,49 @@ def get_breached_emails(credentials_path: str) -> set[str]:
     return set()
 
 
+@typechecked
+def get_ip_from_host(host: str) -> str:
+    return socket.gethostbyname(host)
+
+
+@typechecked
+def get_ips_from_hosts(hosts: list[str]) -> dict[str, str]:
+    ip_addresses = dict()
+    for host in hosts:
+        try:
+            ip = get_ip_from_host(host)
+            ip_addresses[host] = ip
+        except socket.gaierror:
+            print(f"Error: Unable to resolve host {host}.")
+        except Exception as e:
+            print(f"An unexpected error occurred while resolving host {host}: {e}")
+    return ip_addresses
+
 def main():
-    
+
     api_keys = retrieve_api_keys()
     
     intelx = IntelX(api_key=api_keys["intelx"])
     haveibeenpwned = HaveIBeenPwned(api_key=api_keys["haveibeenpwned"])
+    c99 = C99(api_key=api_keys["c99"])
+    abuseipdb = AbuseIPDB(api_key=api_keys["abuseipdb"])
 
     domain = "internet-idee.net"
-    
+
+    subdomain_result = c99.subdomain_finder(domain)
+    if len(subdomain_result) == 0:
+        print("Error: No subdomains found")
+        return
+
+    hosts_ips = get_ips_from_hosts(subdomain_result)
+
+    # [val for _, val in hosts_ips.items() if val is not None]
+    save_dict_to_json_file(
+        dictionary=abuseipdb.get_abused_ips_reports(ips=["62.149.128.154", "62.149.128.155"]),
+        file_path=os.path.join(BASE_DIR, domain, "abuseipdb", "abused_ips.json")
+    )
+
+    '''    
     search_id = intelx.phonebook_search(term=domain, target=1)
 
     if search_id is None:
@@ -444,7 +620,7 @@ def main():
         file_path="phonebook_search_result.json"
     )
 
-    '''
+    
     credential_regex = rf"{EMAIL_WITHOUT_DOMAIN_REGEX}{domain}:\S+"
 
     # Create a directory for the domain if it doesn't exist
