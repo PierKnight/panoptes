@@ -9,6 +9,16 @@ import re
 import zipfile
 import csv
 
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+
+from PIL import Image
+import io
+
+
 import socket
 
 
@@ -78,7 +88,7 @@ class IntelX:
 
     It returns the id to be used to retrieve the search results
     '''
-    def intelligent_search(self, term: str, buckets = None, maxresults: int = 1000, sort: int = 2, media: int = 0) -> str:
+    def intelligent_search(self, term: str, buckets = None, maxresults: int = 1000, sort: int = 2, media: int = 0) -> str | None:
         # TODO: Validation
         search_id = None
         if buckets is None:
@@ -480,6 +490,55 @@ class HTTPSecurityHeaders:
         return missing_security_headers
 ######################################## END CLASS HTTPSecurityHeaders ####################################
 
+@typechecked
+class SSLShopper:
+    def __init__(self):
+        self.base_url = "https://www.sslshopper.com/ssl-checker.html"
+
+    '''
+    The following function is used to check the SSL certificate of a domain.
+    It takes the following parameters:
+        domain: str               # The domain to check
+    It returns the SSL certificate for the given domain.
+    '''
+    def get_ssl_certificate(self, domain: str) -> dict:
+        url = f"{self.base_url}#hostname={domain}"
+        driver = webdriver.Chrome()
+
+        try:
+            # Navigate to the page
+            driver.get(url)
+
+            # Wait up to 10 seconds for the 'checker_certs' element to be visible
+            WebDriverWait(driver, 30).until(
+                EC.visibility_of_element_located((By.CLASS_NAME, 'checker_certs'))
+            )
+
+            # Remove the element with class 'bsaStickyLeaderboard' using JavaScript
+
+            driver.execute_script("""
+                var ele = document.getElementsByClassName('bsaStickyLeaderboard')[0];
+                if (ele) { ele.parentNode.removeChild(ele); }
+            """)
+
+            element = driver.find_element(By.CLASS_NAME, 'checker_certs')
+
+            image_binary = element.screenshot_as_png
+
+            img = Image.open(io.BytesIO(image_binary))
+            img.save("image.png")
+
+            html_content = element.get_attribute('innerHTML')
+            # For demonstration, return the HTML content (you might want to parse this)
+            return {"html_content": html_content}
+
+        except TimeoutException:
+            print("Loading the page or element took too much time!")
+            return {}
+
+        finally:
+            # Close the browser
+            driver.quit()
 
 '''
 The following function is used to retrieve the credentials from a file.
@@ -701,11 +760,15 @@ def main():
     c99 = C99(api_key=api_keys["c99"])
     abuseipdb = AbuseIPDB(api_key=api_keys["abuseipdb"])
     httpsecurityheaders = HTTPSecurityHeaders()
+    sslshopper = SSLShopper()
 
     domain = "internet-idee.net"
 
     credential_regex = rf"{EMAIL_WITHOUT_DOMAIN_REGEX}{domain}:\S+"
 
+    sslshopper.get_ssl_certificate(domain)
+
+    '''
     # Create a directory for the domain if it doesn't exist
     create_working_directories(domain, SERVICES_EMPLOYED)
 
@@ -798,6 +861,7 @@ def main():
             dictionary=emails_breaches,
             file_path=breaches_path
         )
+    '''
 
 if __name__ == "__main__":
     main()
