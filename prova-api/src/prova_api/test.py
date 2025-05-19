@@ -8,6 +8,8 @@ import os
 import re
 import zipfile
 import csv
+import time
+from bs4 import BeautifulSoup
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -27,7 +29,9 @@ SERVICES_EMPLOYED = [
     "haveibeenpwned",
     "intelx",
     "c99",
-    "abuseipdb"
+    "abuseipdb",
+    "httpsecurityheaders",
+    "sslshopper"
 ]
 BASE_DIR = os.path.join(os.path.expanduser("~"), "prove")
 HAVEIBEENPWNED_REQUEST_DELAY_IN_SECONDS = 1
@@ -495,14 +499,37 @@ class SSLShopper:
     def __init__(self):
         self.base_url = "https://www.sslshopper.com/ssl-checker.html"
 
+    @staticmethod
+    def __get_certificate_json_from_list(content_list: list[str]) -> dict:
+        certificate_json = dict()
+        for line in content_list:
+            # Split the line into key and value
+            # Assuming the format is "key: value"
+            parts = line.split(":")
+            if len(parts) == 2:
+                key = parts[0].strip()
+                value = parts[1].strip()
+
+                # Check if the value is a list
+                if "," in value:
+                    # Split the value into a list
+                    value = [v.strip() for v in value.split(",")]
+                # Add to the dictionary
+                certificate_json[key] = value
+        return certificate_json
+
     '''
     The following function is used to check the SSL certificate of a domain.
+    Selenium is used to retrieve the necessary information.
     It takes the following parameters:
         domain: str               # The domain to check
-    It returns the SSL certificate for the given domain.
+    It returns a dict containing the screenshot of the SSL Certificate Chain and
+    the JSON representation of the server certificate.
     '''
-    def get_ssl_certificate(self, domain: str) -> dict:
+    def get_ssl_certificate_info(self, domain: str) -> dict:
         url = f"{self.base_url}#hostname={domain}"
+
+        # Set up the Selenium WebDriver
         driver = webdriver.Chrome()
 
         try:
@@ -514,31 +541,55 @@ class SSLShopper:
                 EC.visibility_of_element_located((By.CLASS_NAME, 'checker_certs'))
             )
 
-            # Remove the element with class 'bsaStickyLeaderboard' using JavaScript
-
+            # Remove advertisement elements
             driver.execute_script("""
                 var ele = document.getElementsByClassName('bsaStickyLeaderboard')[0];
                 if (ele) { ele.parentNode.removeChild(ele); }
+                var ele = document.getElementById('promo-outer');
+                if (ele) { ele.parentNode.removeChild(ele); }
             """)
 
+            # Wait for the page to load completely
+            time.sleep(0.5)
+
+            # Find the element containing the certificate chain information
             element = driver.find_element(By.CLASS_NAME, 'checker_certs')
 
+            first_row = element.find_element(By.CSS_SELECTOR, 'tbody > tr:first-of-type')
+            cert_json = SSLShopper.__get_certificate_json_from_list(content_list=first_row.text.split("\n"))
+
+            # Get the height of the element
+            element_height = element.size['height']
+            element_width = element.size['width']
+
+            # Set window size to accommodate the element
+            driver.set_window_size(max(1024, element_width + 100), max(768, element_height + 200))
+
+            # Make sure element is in view
+            driver.execute_script("arguments[0].scrollIntoView(true);", element)
+
             image_binary = element.screenshot_as_png
+            cert_img = Image.open(io.BytesIO(image_binary))
 
-            img = Image.open(io.BytesIO(image_binary))
-            img.save("image.png")
-
-            html_content = element.get_attribute('innerHTML')
-            # For demonstration, return the HTML content (you might want to parse this)
-            return {"html_content": html_content}
+            #
+            return {
+                "certificate_json": cert_json,
+                "certificate_image": cert_img,
+            }
 
         except TimeoutException:
             print("Loading the page or element took too much time!")
             return {}
 
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return {}
+
         finally:
             # Close the browser
             driver.quit()
+######################################## END CLASS SSLShopper ####################################
+
 
 '''
 The following function is used to retrieve the credentials from a file.
@@ -754,7 +805,12 @@ def get_ips_from_hosts(hosts: list[str]) -> dict[str, str]:
 
 def main():
     api_keys = retrieve_api_keys()
-    
+
+    domain = "internet-idee.net"
+
+    # Create a directory for the domain if it doesn't exist
+    create_working_directories(domain, SERVICES_EMPLOYED)
+
     intelx = IntelX(api_key=api_keys["intelx"])
     haveibeenpwned = HaveIBeenPwned(api_key=api_keys["haveibeenpwned"])
     c99 = C99(api_key=api_keys["c99"])
@@ -762,16 +818,22 @@ def main():
     httpsecurityheaders = HTTPSecurityHeaders()
     sslshopper = SSLShopper()
 
-    domain = "internet-idee.net"
-
     credential_regex = rf"{EMAIL_WITHOUT_DOMAIN_REGEX}{domain}:\S+"
 
-    sslshopper.get_ssl_certificate(domain)
+    certificate_info = sslshopper.get_ssl_certificate_info(domain)
+
+    if "certificate_json" and "certificate_image" in certificate_info:
+        # Save the certificate image
+        certificate_image = certificate_info["certificate_image"]
+        certificate_image.save(os.path.join(BASE_DIR, domain, "sslshopper", "certificate_chain.png"))
+
+        # Save the certificate JSON
+        save_dict_to_json_file(
+            dictionary=certificate_info["certificate_json"],
+            file_path=os.path.join(BASE_DIR, domain, "sslshopper", "certificate_data.json")
+        )
 
     '''
-    # Create a directory for the domain if it doesn't exist
-    create_working_directories(domain, SERVICES_EMPLOYED)
-
     missing_headers_descriptions = httpsecurityheaders.get_missing_security_headers_with_description(domain)
     if missing_headers_descriptions:
         print(missing_headers_descriptions)
@@ -855,7 +917,7 @@ def main():
             emails_breaches[email] = breaches
 
             # Necessary since the api key we are provided with has a rate limit
-            __import__("time").sleep(HAVEIBEENPWNED_REQUEST_DELAY_IN_SECONDS)
+            time.sleep(HAVEIBEENPWNED_REQUEST_DELAY_IN_SECONDS)
         
         save_dict_to_json_file(
             dictionary=emails_breaches,
