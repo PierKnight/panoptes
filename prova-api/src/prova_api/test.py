@@ -10,6 +10,7 @@ import zipfile
 import csv
 import time
 from bs4 import BeautifulSoup
+from shodan import Shodan
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -31,8 +32,24 @@ SERVICES_EMPLOYED = [
     "c99",
     "abuseipdb",
     "httpsecurityheaders",
-    "sslshopper"
+    "sslshopper",
+    "shodan"
 ]
+INTELX_BUCKETS = [
+    "pastes",
+    "darknet.tor",
+    "darknet.i2p",
+    "whois",
+    "usenet",
+    "leaks.private.general",
+    "leaks.private.comb",
+    "leaks.logs",
+    "leaks.public.wikileaks",
+    "leaks.public.general",
+    "dumpster",
+    "documents.public.scihub"
+]
+
 BASE_DIR = os.path.join(os.path.expanduser("~"), "prove")
 HAVEIBEENPWNED_REQUEST_DELAY_IN_SECONDS = 1
 
@@ -571,7 +588,6 @@ class SSLShopper:
             image_binary = element.screenshot_as_png
             cert_img = Image.open(io.BytesIO(image_binary))
 
-            #
             return {
                 "certificate_json": cert_json,
                 "certificate_image": cert_img,
@@ -803,6 +819,80 @@ def get_ips_from_hosts(hosts: list[str]) -> dict[str, str]:
     return ip_addresses
 
 
+@typechecked
+def get_groomed_shodan_info(host_info: dict):
+    groomed_info = dict()
+    # Exposed ports
+    groomed_info["asn"] = host_info["asn"]
+    groomed_info["isp"] = host_info["isp"]
+
+    old_data = host_info["data"]
+    new_data = list()
+    exposed_service_as_is = ["os", "port", "product", "transport", "version"]
+
+    # Services section
+    for exposed_service in old_data:
+        to_add = dict()
+        for field in exposed_service_as_is:
+            if field in exposed_service:
+                to_add[field] = exposed_service[field]
+
+        port = transport = product = version = ""
+
+        if "port" in to_add:
+            port = to_add["port"]
+        if "transport" in to_add:
+            transport = to_add["transport"]
+        if "product" in to_add:
+            product = to_add["product"]
+        if "version" in to_add:
+            version = to_add["version"]
+
+        name = f"{port}/{transport}/{product}/{version}"
+        re.sub(name, "/{2,}", "/")
+        name = re.sub(r"^/|/$", "", name)  # Remove leading and trailing slashes
+
+        to_add["name"] = name
+        
+        new_data.append(to_add)
+
+    groomed_info["data"] = new_data
+    
+    # CVEs section
+    new_vulns = list()
+
+    if "vulns" not in host_info:
+        print("No CVEs found in the host information.")
+        return groomed_info
+    
+    vulns = host_info["vulns"]
+
+    for cve in vulns:
+        to_add = dict()
+        try:
+            result = http.get(f"https://cvedb.shodan.io/cve/{cve}")
+
+            result.raise_for_status()
+
+            result_json = result.json()
+
+            to_add["cve_id"] = result_json["cve_id"]
+            to_add["summary"] = result_json["summary"]
+            to_add["cvss"] = result_json["cvss"]
+
+            new_vulns.append(to_add)
+        except http.exceptions.RequestException as e:
+            print(f"Network error during CVE request: {e}")
+        except json.JSONDecodeError:
+            print("Failed to parse CVE response JSON.")
+        except Exception as e:
+            print(f"Unexpected error while performing CVE request: {e}")
+
+    groomed_info["vulns"] = new_vulns
+
+    return groomed_info
+
+
 def main():
     api_keys = retrieve_api_keys()
 
@@ -817,9 +907,13 @@ def main():
     abuseipdb = AbuseIPDB(api_key=api_keys["abuseipdb"])
     httpsecurityheaders = HTTPSecurityHeaders()
     sslshopper = SSLShopper()
+    shodan = Shodan(key=api_keys["shodan"])
 
     credential_regex = rf"{EMAIL_WITHOUT_DOMAIN_REGEX}{domain}:\S+"
 
+
+    ### SSLShopper
+    print("SSLShopper")
     certificate_info = sslshopper.get_ssl_certificate_info(domain)
 
     if "certificate_json" and "certificate_image" in certificate_info:
@@ -833,13 +927,23 @@ def main():
             file_path=os.path.join(BASE_DIR, domain, "sslshopper", "certificate_data.json")
         )
 
-    '''
+    ### HTTP Security Headers
+    print("HTTP Security Headers")
     missing_headers_descriptions = httpsecurityheaders.get_missing_security_headers_with_description(domain)
     if missing_headers_descriptions:
-        print(missing_headers_descriptions)
-
+        save_dict_to_json_file(
+            dictionary=missing_headers_descriptions,
+            file_path=os.path.join(BASE_DIR, domain, "httpsecurityheaders", "missing_security_headers.json")
+        )
+    
+    ### C99
+    print("C99")
     subdomain_result = c99.subdomain_finder(domain)
+    
+    
     if len(subdomain_result) > 0:
+        ### AbuseIPDB
+        print("AbuseIPDB")
         hosts_ips = get_ips_from_hosts(subdomain_result)
 
         # ["62.149.128.154", "62.149.128.155"]
@@ -847,7 +951,29 @@ def main():
             dictionary=abuseipdb.get_abused_ips_reports(ips=[val for _, val in hosts_ips.items() if val is not None]),
             file_path=os.path.join(BASE_DIR, domain, "abuseipdb", "abused_ips.json")
         )
+    
+        ### Shodan
+        print("Shodan")
+        for ip in hosts_ips.values():
+            # Get the host information from Shodan
+            try:
+                host_info = shodan.host(ip)
+            except Exception as e:
+                print(f"Error retrieving host information for {ip}: {e}")
+                host_info = None
 
+            if host_info:
+                os.makedirs(os.path.join(BASE_DIR, domain, "shodan", ip), exist_ok=True)
+
+                groomed_json = get_groomed_shodan_info(host_info)
+
+                save_dict_to_json_file(
+                    dictionary=groomed_json,
+                    file_path=os.path.join(BASE_DIR, domain, "shodan", ip, "shodan_info.json")
+                )
+
+    
+    ### IntelX
     phonebook_search_id = intelx.phonebook_search(term=domain, target=1)
 
     if phonebook_search_id is not None:
@@ -862,7 +988,7 @@ def main():
     else:
         print("Error: Phonebook search ID is None")
     
-    intelligent_search_id = intelx.intelligent_search(term=domain, media=0)
+    intelligent_search_id = intelx.intelligent_search(term=domain, media=0, buckets=INTELX_BUCKETS)
 
     intelx_breach_files = os.path.join(BASE_DIR, domain, "intelx", "breach_files")
     credentials_path = os.path.join(BASE_DIR, domain, "intelx", "credentials.json")
@@ -923,7 +1049,6 @@ def main():
             dictionary=emails_breaches,
             file_path=breaches_path
         )
-    '''
 
 if __name__ == "__main__":
     main()
