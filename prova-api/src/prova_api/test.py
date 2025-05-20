@@ -606,6 +606,41 @@ class SSLShopper:
             driver.quit()
 ######################################## END CLASS SSLShopper ####################################
 
+@typechecked
+class VirusTotal:
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://www.virustotal.com/api/v3"
+
+    '''
+    The following function is used to retrieve the subdomains of a domain.
+    It takes the following parameters:
+        
+        domain: str               # The domain to check
+    It returns a list of subdomains for the given domain.
+    '''
+    def get_subdomains_list(self, domain: str) -> list[str]:
+        url = f"{self.base_url}/domains/{domain}/subdomains"
+        headers = {"x-apikey": "267b478d270e0ab7e101b2b9c039e7c6ebeca93adb23f26a30e3b22b686c6d89"}
+        subdomains_list = list()
+        try:
+            result = http.get(
+                url=url,
+                headers=headers
+            )
+            result.raise_for_status()
+
+            result_json = result.json()
+            subdomains_list.extend([entry["id"] for entry in result_json["data"]])
+            return subdomains_list
+        except http.exceptions.RequestException as e:
+            print(f"Network error during search request: {e}")
+        except json.JSONDecodeError:
+            print("Failed to parse search response JSON.")
+        except Exception as e:
+            print(f"Unexpected error while performing search request: {e}")
+######################################## END CLASS VirusTotal ####################################
+
 
 '''
 The following function is used to retrieve the credentials from a file.
@@ -613,23 +648,39 @@ It takes the following parameters:
     file_path: str               # The path to the file
     credential_regex: str        # The regex to use to extract the credentials
     
-It returns a list of credentials found in the file.
+It returns a dict with the email addresses as keys and the credentials as values.
 '''
 @typechecked
-def get_credentials_from_file(file_path: str, credential_regex: str) -> list[str]:
-    credentials = list()
+def get_credentials_from_file(file_path: str, credential_regex: str) -> dict[str, set[str]]:
+    email_credentials = dict()
 
     # This is done to avoid regex injection
     if len(credential_regex) > 500:
         print("Error: Credential regex is too long.")
-        return credentials
+        return email_credentials
 
     try:
         with open(file_path, "r") as f:
             for line in f:
                 matches = re.findall(credential_regex, line)
                 if matches:
-                    credentials.extend(matches)
+                    for match in matches:
+                        email, password = match.split(":")[:2]
+                        
+                        # Create a new list for the email if it doesn't exist
+                        if email not in email_credentials:
+                            email_credentials[email] = set()
+                        
+                        # If credentials appear in a record with a URL, we want to add the URL to the credentials
+                        if "http" in line:
+                            email_credentials[email].add(line.strip())
+                        else:
+                            # We want to add the email and password as a single string
+                            credentials = f"{email}:{password}"
+
+                            # We want to add the email and password as a single string
+                            email_credentials[email].add(credentials)
+                        
     except FileNotFoundError:
         print(f"Error: File {file_path} not found.")
     except PermissionError:
@@ -637,7 +688,7 @@ def get_credentials_from_file(file_path: str, credential_regex: str) -> list[str
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
-    return credentials
+    return email_credentials
 
 
 '''
@@ -681,7 +732,7 @@ It takes the following parameters:
 It returns a dictionary with the system IDs as keys and the credentials as values.
 '''
 @typechecked
-def start_credentials_retrieving_from_folder(folder_path: str, credential_regex: str):
+def OLD_start_credentials_retrieving_from_folder(folder_path: str, credential_regex: str):
     # System ID (str) to breach file name (str) association
     system_ids_names = get_system_ids_names_association(folder_path)
 
@@ -717,6 +768,62 @@ def start_credentials_retrieving_from_folder(folder_path: str, credential_regex:
             del credentials[key]
 
     return credentials
+
+
+'''
+The following function is used to start the credentials retrieving process from a folder.
+It uses multiprocessing to speed up the process.
+It takes the following parameters:
+    folder_path: str           # The path to the folder containing the files
+    credential_regex: str      # The regex to use to extract the credentials
+It returns a dictionary with the email addresses as keys and the credentials as values.
+'''
+@typechecked
+def start_credentials_retrieving_from_folder(folder_path: str, credential_regex: str):
+    # Breach file name (str) to credentials (list[str]) association
+    credentials = {}
+    
+    # Get list of files to process
+    files_to_process = [
+        file for file in os.listdir(folder_path) 
+        if file != "Info.csv" and file.lower().split(".")[-1] in ["txt", "csv"]
+    ]
+    
+    # Process files in parallel
+    import concurrent.futures
+    
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        # Create a dictionary to track futures
+        future_to_file = {
+            executor.submit(
+                get_credentials_from_file, 
+                os.path.join(BASE_DIR, folder_path, file), 
+                credential_regex
+            ): file for file in files_to_process
+        }
+        
+        # Process results as they complete
+        for future in concurrent.futures.as_completed(future_to_file):
+            file = future_to_file[future]
+            print(f"Processing file: {file}")
+            try:
+                file_credentials = future.result()
+                # Merge the results
+                for email, credentials_set in file_credentials.items():
+                    if email not in credentials:
+                        credentials[email] = set()
+                    credentials[email] = credentials[email].union(credentials_set)
+            except Exception as e:
+                print(f"Error processing {file}: {e}")
+
+        # Sort the credentials dictionary by email
+        credentials = dict(sorted(credentials.items(), key=lambda item: item[0]))
+
+        # Sort the credentials for each email (it also converts the set to a list, which is necessary for JSON serialization)
+        for email in credentials:
+            credentials[email] = sorted(credentials[email])
+    return credentials
+
 
 ''' 
 The following function is used to save a dictionary to a JSON file.
@@ -764,7 +871,7 @@ It takes the following parameters:
 It returns a set of breached emails.
 '''
 @typechecked
-def get_breached_emails(credentials_path: str) -> set[str]:
+def OLD_get_breached_emails(credentials_path: str) -> set[str]:
     # If the credential.json file exists
     if os.path.exists(credentials_path):
         try:
@@ -776,6 +883,31 @@ def get_breached_emails(credentials_path: str) -> set[str]:
                 leaked_in_this_file = set([creds.split(":")[0] for creds in creds if ":" in creds])
                 breached_emails = breached_emails.union(leaked_in_this_file)
             return breached_emails
+        except FileNotFoundError:
+            print(f"Error: File {credentials_path} not found.")
+        except PermissionError:
+            print(f"Error: Permission denied when accessing the file {credentials_path}.")
+        except json.JSONDecodeError:
+            print(f"Error: Failed to decode JSON from the file {credentials_path}.")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        
+    return set()
+
+'''
+The following function is used to retrieve the breached emails from the credentials file.
+It takes the following parameters:
+    credentials_path: str     # The path to the credentials file
+It returns a set of breached emails.
+'''
+@typechecked
+def get_breached_emails(credentials_path: str) -> set[str]:
+    # If the credential.json file exists
+    if os.path.exists(credentials_path):
+        try:
+            with open(credentials_path, "r") as f:
+                credentials = json.load(f)         
+            return set(credentials.keys())
         except FileNotFoundError:
             print(f"Error: File {credentials_path} not found.")
         except PermissionError:
@@ -839,6 +971,7 @@ def get_groomed_shodan_info(host_info: dict):
 
         port = transport = product = version = ""
 
+
         if "port" in to_add:
             port = to_add["port"]
         if "transport" in to_add:
@@ -849,8 +982,8 @@ def get_groomed_shodan_info(host_info: dict):
             version = to_add["version"]
 
         name = f"{port}/{transport}/{product}/{version}"
-        re.sub(name, "/{2,}", "/")
-        name = re.sub(r"^/|/$", "", name)  # Remove leading and trailing slashes
+        re.sub(name, "/{2,}", "/")          # Remove multiple slashes caused by empty fields
+        name = re.sub(r"^/|/$", "", name)   # Remove leading and trailing slashes
 
         to_add["name"] = name
         
@@ -908,9 +1041,9 @@ def main():
     httpsecurityheaders = HTTPSecurityHeaders()
     sslshopper = SSLShopper()
     shodan = Shodan(key=api_keys["shodan"])
+    virustotal = VirusTotal(api_key=api_keys["virustotal"])
 
     credential_regex = rf"{EMAIL_WITHOUT_DOMAIN_REGEX}{domain}:\S+"
-
 
     ### SSLShopper
     print("SSLShopper")
@@ -936,17 +1069,45 @@ def main():
             file_path=os.path.join(BASE_DIR, domain, "httpsecurityheaders", "missing_security_headers.json")
         )
     
+    subdomains = set()
+
+    # VirusTotal
+    virustotal_subdomains = virustotal.get_subdomains_list(domain)
+
     ### C99
     print("C99")
     subdomain_result = c99.subdomain_finder(domain)
+
+    ### IntelX
+    phonebook_search_id = intelx.phonebook_search(term=domain, target=1)
+
+    if phonebook_search_id is not None:
+        phonebook_search_result = intelx.phonebook_search_result(search_id=phonebook_search_id, limit=1000)
+        if phonebook_search_result is not None:
+            phonebook_result = list()
+            if "selectors" in phonebook_search_result:
+                for entry in phonebook_search_result["selectors"]:
+                    if "selectorvalue" in entry:
+                        phonebook_result.append(entry["selectorvalue"])
+
+        else:
+            print("Error: Phonebook search result is None")
+    else:
+        print("Error: Phonebook search ID is None")
     
-    
-    if len(subdomain_result) > 0:
+    # Merge the subdomains from C99, IntelX, and VirusTotal into a sorted (list)
+    subdomains = sorted(set(subdomain_result).union(set(phonebook_result)).union(set(virustotal_subdomains)))
+
+    if len(subdomains) > 0:
+        # Save the subdomains to a TXT file
+        with open(os.path.join(BASE_DIR, domain, "subdomains.txt"), "w") as f:
+            for subdomain in subdomains:
+                f.write(f"{subdomain}\n")
+        
         ### AbuseIPDB
         print("AbuseIPDB")
-        hosts_ips = get_ips_from_hosts(subdomain_result)
+        hosts_ips = get_ips_from_hosts(subdomains)
 
-        # ["62.149.128.154", "62.149.128.155"]
         save_dict_to_json_file(
             dictionary=abuseipdb.get_abused_ips_reports(ips=[val for _, val in hosts_ips.items() if val is not None]),
             file_path=os.path.join(BASE_DIR, domain, "abuseipdb", "abused_ips.json")
@@ -971,32 +1132,17 @@ def main():
                     dictionary=groomed_json,
                     file_path=os.path.join(BASE_DIR, domain, "shodan", ip, "shodan_info.json")
                 )
-
     
-    ### IntelX
-    phonebook_search_id = intelx.phonebook_search(term=domain, target=1)
 
-    if phonebook_search_id is not None:
-        phonebook_search_result = intelx.phonebook_search_result(search_id=phonebook_search_id, limit=1000)
-        if phonebook_search_result is not None:
-            save_dict_to_json_file(
-                dictionary=phonebook_search_result,
-                file_path="phonebook_search_result.json"
-            )
-        else:
-            print("Error: Phonebook search result is None")
-    else:
-        print("Error: Phonebook search ID is None")
-    
-    intelligent_search_id = intelx.intelligent_search(term=domain, media=0, buckets=INTELX_BUCKETS)
+    intelligent_search_id = intelx.intelligent_search(term=domain, media=24, buckets=INTELX_BUCKETS, maxresults=5000)
 
     intelx_breach_files = os.path.join(BASE_DIR, domain, "intelx", "breach_files")
     credentials_path = os.path.join(BASE_DIR, domain, "intelx", "credentials.json")
-
+    
     if intelligent_search_id is not None:
         filetype = "zip"  # or "csv"
 
-        content = intelx.intelligent_search_export(search_id=intelligent_search_id, limit=2000, filetype=filetype)
+        content = intelx.intelligent_search_export(search_id=intelligent_search_id, limit=5000, filetype=filetype)
 
         if content is not None:
             # Writes to disk the search results (as a CSV or ZIP file)
@@ -1030,7 +1176,7 @@ def main():
                 )
         else:
             print("Error: Intelligent search export result is empty")
-
+    
 
     # Extract all the emails from the dataleaks
     if os.path.exists(credentials_path):
@@ -1049,6 +1195,7 @@ def main():
             dictionary=emails_breaches,
             file_path=breaches_path
         )
+    
 
 if __name__ == "__main__":
     main()
