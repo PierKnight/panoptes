@@ -21,6 +21,7 @@ from selenium.common.exceptions import TimeoutException
 from PIL import Image
 import io
 
+import sys
 
 import socket
 
@@ -29,11 +30,11 @@ EMAIL_WITHOUT_DOMAIN_REGEX = r"[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+
 SERVICES_EMPLOYED = [
     "haveibeenpwned",
     "intelx",
-    "c99",
     "abuseipdb",
     "httpsecurityheaders",
     "sslshopper",
-    "shodan"
+    "shodan",
+    "dnsdumpster",
 ]
 INTELX_BUCKETS = [
     "pastes",
@@ -189,6 +190,8 @@ class IntelX:
                 
         except http.exceptions.RequestException as e:       
             print(f"Network error during search export request: {e}")
+        except http.Timeout:
+            print("Request timed out. The file might be too large.")
         except Exception as e:
             print(f"Unexpected error while performing search export request: {e}")
         return None
@@ -347,6 +350,10 @@ class C99:
 
             search_result = json.loads(result.text)
 
+            if "success" in search_result and search_result["success"] == False:
+                print(f"No subdomains found for {domain} by C99")
+                return subdomains
+
             # Extract just the subdomains from the response
             subdomains = [subdomain["subdomain"] for subdomain in search_result["subdomains"]]
 
@@ -497,18 +504,33 @@ class HTTPSecurityHeaders:
     '''
     def get_missing_security_headers_with_description(self, domain: str) -> dict:
         url = f"https://{domain}"
-
-        result = http.get(url)
-        headers = set(result.headers.keys())
-        missing = self.__security_headers - headers
-
         missing_security_headers = dict()
+        try:
+            result = http.get(
+                url=url,
+                timeout=5
+            )
+            result.raise_for_status
+            headers = set(result.headers.keys())
+            missing = self.__security_headers - headers
 
-        for k,v in self.__security_headers_description.items():
-            if k in missing:
-                missing_security_headers[k] = v
+            for k,v in self.__security_headers_description.items():
+                if k in missing:
+                    missing_security_headers[k] = v
 
-        return missing_security_headers
+            return missing_security_headers
+        except json.JSONDecodeError:
+            print("Failed to parse search response JSON.")
+            missing_security_headers["error"] = "Failed to parse search response JSON."
+            return missing_security_headers
+        except (http.Timeout, http.exceptions.RequestException) as e:
+            if "www" not in domain:
+                return self.get_missing_security_headers_with_description(domain=f"www.{domain}")
+            else:
+                missing_security_headers["error"] = "Timeout" if isinstance(e, http.Timeout) else "RequestException"
+                return missing_security_headers
+            
+
 ######################################## END CLASS HTTPSecurityHeaders ####################################
 
 @typechecked
@@ -517,7 +539,7 @@ class SSLShopper:
         self.base_url = "https://www.sslshopper.com/ssl-checker.html"
 
     @staticmethod
-    def __get_certificate_json_from_list(content_list: list[str]) -> dict:
+    def get_certificate_json_from_list(content_list: list[str]) -> dict:
         certificate_json = dict()
         for line in content_list:
             # Split the line into key and value
@@ -541,9 +563,18 @@ class SSLShopper:
     It takes the following parameters:
         domain: str               # The domain to check
     It returns a dict containing the screenshot of the SSL Certificate Chain and
-    the JSON representation of the server certificate.
+    the JSON representation of the server certificate (if present).
     '''
     def get_ssl_certificate_info(self, domain: str) -> dict:
+        # Check if the domain is reachable, if not, add www.
+        try:
+            http.get(
+                url = f"https://{domain}",
+                timeout=5
+            )
+        except http.Timeout as e:
+            domain = f"www.{domain}"
+        
         url = f"{self.base_url}#hostname={domain}"
 
         # Set up the Selenium WebDriver
@@ -553,53 +584,23 @@ class SSLShopper:
             # Navigate to the page
             driver.get(url)
 
-            # Wait up to 10 seconds for the 'checker_certs' element to be visible
-            WebDriverWait(driver, 30).until(
-                EC.visibility_of_element_located((By.CLASS_NAME, 'checker_certs'))
-            )
-
-            # Remove advertisement elements
-            driver.execute_script("""
-                var ele = document.getElementsByClassName('bsaStickyLeaderboard')[0];
-                if (ele) { ele.parentNode.removeChild(ele); }
-                var ele = document.getElementById('promo-outer');
-                if (ele) { ele.parentNode.removeChild(ele); }
-            """)
-
-            # Wait for the page to load completely
-            time.sleep(0.5)
-
-            # Find the element containing the certificate chain information
-            element = driver.find_element(By.CLASS_NAME, 'checker_certs')
-
-            first_row = element.find_element(By.CSS_SELECTOR, 'tbody > tr:first-of-type')
-            cert_json = SSLShopper.__get_certificate_json_from_list(content_list=first_row.text.split("\n"))
-
-            # Get the height of the element
-            element_height = element.size['height']
-            element_width = element.size['width']
-
-            # Set window size to accommodate the element
-            driver.set_window_size(max(1024, element_width + 100), max(768, element_height + 200))
-
-            # Make sure element is in view
-            driver.execute_script("arguments[0].scrollIntoView(true);", element)
-
-            image_binary = element.screenshot_as_png
-            cert_img = Image.open(io.BytesIO(image_binary))
-
-            return {
-                "certificate_json": cert_json,
-                "certificate_image": cert_img,
-            }
-
-        except TimeoutException:
-            print("Loading the page or element took too much time!")
-            return {}
+            try:
+                return take_screenshot_with_selenium_by_class_name(driver, "checker_certs")
+            except TimeoutException:
+                print("No certificate chain found, trying to get the summary instead")
+                
+                # Try to find the checker_messages element and take screenshot of it
+                try:
+                    return take_screenshot_with_selenium_by_class_name(driver, "checker_messages")                 
+                except Exception as inner_e:
+                    print(f"Failed to capture 'checker_messages' element: {inner_e}")
+                    return {
+                        "error": "Failed to find both certificate info and error messages"
+                    }
 
         except Exception as e:
             print(f"An error occurred: {e}")
-            return {}
+            return {"error": str(e)}
 
         finally:
             # Close the browser
@@ -642,6 +643,36 @@ class VirusTotal:
 ######################################## END CLASS VirusTotal ####################################
 
 
+class DNSDumpster:
+    def __init__(self, api_key: str):
+        self.base_url = "https://api.dnsdumpster.com"
+        self.api_key = api_key
+
+    def get_dns_records_from_domain(self, domain: str) -> dict:
+        url = f"{self.base_url}/domain/{domain}"
+        headers = {
+            "X-API-Key": self.api_key,
+        }
+
+        dns_records = dict()
+
+        try:
+            result = http.get(
+                url=url,
+                headers=headers
+            )
+            result.raise_for_status()
+
+            result_json = result.json()
+            return result_json
+        except http.exceptions.RequestException as e:
+            print(f"Network error during search request: {e}")
+        except json.JSONDecodeError:
+            print("Failed to parse search response JSON.")
+        except Exception as e:
+            print(f"Unexpected error while performing search request: {e}")
+        return dns_records
+    
 '''
 The following function is used to retrieve the credentials from a file.
 It takes the following parameters:
@@ -824,6 +855,47 @@ def start_credentials_retrieving_from_folder(folder_path: str, credential_regex:
             credentials[email] = sorted(credentials[email])
     return credentials
 
+@typechecked
+def take_screenshot_with_selenium_by_class_name(driver: webdriver.Chrome, class_name: str) -> dict:
+    WebDriverWait(driver, 30).until(
+        EC.visibility_of_element_located((By.CLASS_NAME, class_name))
+    )
+
+    # Remove advertisement elements
+    driver.execute_script("""
+        var ele = document.getElementsByClassName('bsaStickyLeaderboard')[0];
+        if (ele) { ele.parentNode.removeChild(ele); }
+        var ele = document.getElementById('promo-outer');
+        if (ele) { ele.parentNode.removeChild(ele); }
+    """)
+
+    # Wait for the page to load completely
+    time.sleep(0.5)
+    # Find the element containing the certificate chain information
+    element = driver.find_element(By.CLASS_NAME, class_name)
+
+    if class_name == "checker_certs":
+        first_row = element.find_element(By.CSS_SELECTOR, 'tbody > tr:first-of-type')
+        cert_json = SSLShopper.get_certificate_json_from_list(content_list=first_row.text.split("\n"))
+
+    # Get the size of the element
+    element_height = element.size['height']
+    element_width = element.size['width']
+
+    # Set window size to accommodate the element
+    driver.set_window_size(max(1024, element_width + 100), max(768, element_height + 200))
+
+    # Make sure element is in view
+    driver.execute_script("arguments[0].scrollIntoView(true);", element)
+
+    image_binary = element.screenshot_as_png
+    cert_img = Image.open(io.BytesIO(image_binary))
+
+    return {
+        "certificate_json": cert_json if class_name == "checker_certs" else {},
+        "certificate_image": cert_img,
+    }
+
 
 ''' 
 The following function is used to save a dictionary to a JSON file.
@@ -927,9 +999,10 @@ It takes the following parameters:
 It returns the IP address of the host.
 '''
 @typechecked
-def get_ip_from_host(host: str) -> str:
-    return socket.gethostbyname(host)
-
+def get_all_ips_from_host(host: str) -> list[str]:
+    """Restituisce tutti gli indirizzi IP associati a un nome host."""
+    _, _, ip_addresses = socket.gethostbyname_ex(host)
+    return ip_addresses
 
 '''
 The following function is used to retrieve the IP addresses from a list of hosts.
@@ -938,19 +1011,24 @@ It takes the following parameters:
 It returns a dictionary with the hosts as keys and the IP addresses as values.
 '''
 @typechecked
-def get_ips_from_hosts(hosts: list[str]) -> dict[str, str]:
+def get_ips_from_hosts(hosts: list[str]) -> dict[str, list[str]]:
     ip_addresses = dict()
     for host in hosts:
         try:
-            ip = get_ip_from_host(host)
-            ip_addresses[host] = ip
+            ips = get_all_ips_from_host(host)
+            ip_addresses[host] = ips
         except socket.gaierror:
             print(f"Error: Unable to resolve host {host}.")
         except Exception as e:
             print(f"An unexpected error occurred while resolving host {host}: {e}")
     return ip_addresses
 
-
+'''
+The following function is used to groom the Shodan information.
+It takes the following parameters:
+    host_info: dict          # The host information to groom
+It returns a dictionary with the groomed information.
+'''
 @typechecked
 def get_groomed_shodan_info(host_info: dict):
     groomed_info = dict()
@@ -1025,12 +1103,69 @@ def get_groomed_shodan_info(host_info: dict):
 
     return groomed_info
 
+'''
+The following function is used to groom the DNSDumpster information.
+It takes the following parameters:
+    dns_records: dict        # The DNS records to groom
+It returns a dictionary with the groomed information.
+'''
+@typechecked
+def get_groomed_dnsdumpster_info(dns_records: dict) -> dict:
+    groomed_info = dict()
+
+    for record_type, records in dns_records.items():
+        # For example for the "total_a_recs", which is an int
+        if type(records) is not list:
+            continue
+
+        # For TXT records, we want to keep the record as is
+        if record_type == "txt":
+            groomed_info[record_type] = records
+        # We filter out some data we don't need
+        else:
+            groomed_info[record_type] = list()
+            for record in records:
+                new_record = dict()
+                try:
+                    if "host" in record:
+                        new_record["host"] = record["host"]
+                    if "ips" in record:
+                        new_record["ips"] = list()
+                        for ip in record["ips"]:
+                            to_add = dict()
+                            if "asn" in ip:
+                                to_add["asn"] = ip["asn"]
+                            if "asn_name" in ip:
+                                to_add["asn_name"] = ip["asn_name"]
+                            if "ip" in ip:
+                                to_add["ip"] = ip["ip"]
+                            new_record["ips"].append(to_add)               
+                except KeyError as e:
+                    print(f"KeyError: {e} in record {record}")
+                groomed_info[record_type].append(new_record)
+    return groomed_info
+    
+
+'''
+The following function is used to aggregate the values from a dictionary without duplicates.
+It takes the following parameters:
+    dictionary: dict         # The dictionary to aggregate
+It returns a list of unique values from the dictionary.
+'''
+@typechecked
+def aggregate_values_from_dict_with_no_duplicates(dictionary: dict) -> list[str]:
+    ips = [ip for ip_list in dictionary.values() for ip in ip_list]
+    ips = list(set(ips))
+    return ips
 
 def main():
     api_keys = retrieve_api_keys()
 
-    domain = "internet-idee.net"
-
+    web_domain = "internet-idee.net"
+    mail_domain = "internet-idee.net"
+    #web_domain = "mediocrati.it"
+    #mail_domain = "mediocrati.bcc.it"
+    domain = web_domain if web_domain else mail_domain
     # Create a directory for the domain if it doesn't exist
     create_working_directories(domain, SERVICES_EMPLOYED)
 
@@ -1042,12 +1177,33 @@ def main():
     sslshopper = SSLShopper()
     shodan = Shodan(key=api_keys["shodan"])
     virustotal = VirusTotal(api_key=api_keys["virustotal"])
+    dnsdumpster = DNSDumpster(api_key=api_keys["dnsdumpster"])
 
-    credential_regex = rf"{EMAIL_WITHOUT_DOMAIN_REGEX}{domain}:\S+"
+    credential_regex = rf"{EMAIL_WITHOUT_DOMAIN_REGEX}{mail_domain}:\S+"
+    
+    ##### DNS Analysis
+    ### DNSDumpster
+    print("DNSDumpster")
+    dns_records = get_groomed_dnsdumpster_info(dnsdumpster.get_dns_records_from_domain(domain))
+    save_dict_to_json_file(
+        dictionary=dns_records,
+        file_path=os.path.join(BASE_DIR, domain, "dnsdumpster", "dns_records.json")
+    )
 
+    ##### HTTP Security Headers Check
+    ### HTTP Security Headers
+    print("HTTP Security Headers")
+    missing_headers_descriptions = httpsecurityheaders.get_missing_security_headers_with_description(web_domain)
+    if missing_headers_descriptions:
+        save_dict_to_json_file(
+            dictionary=missing_headers_descriptions,
+            file_path=os.path.join(BASE_DIR, domain, "httpsecurityheaders", "missing_security_headers.json")
+        )
+
+    ###### SSL Certificate Chain + Data
     ### SSLShopper
     print("SSLShopper")
-    certificate_info = sslshopper.get_ssl_certificate_info(domain)
+    certificate_info = sslshopper.get_ssl_certificate_info(web_domain)
 
     if "certificate_json" and "certificate_image" in certificate_info:
         # Save the certificate image
@@ -1060,26 +1216,18 @@ def main():
             file_path=os.path.join(BASE_DIR, domain, "sslshopper", "certificate_data.json")
         )
 
-    ### HTTP Security Headers
-    print("HTTP Security Headers")
-    missing_headers_descriptions = httpsecurityheaders.get_missing_security_headers_with_description(domain)
-    if missing_headers_descriptions:
-        save_dict_to_json_file(
-            dictionary=missing_headers_descriptions,
-            file_path=os.path.join(BASE_DIR, domain, "httpsecurityheaders", "missing_security_headers.json")
-        )
-    
+    ##### Subdomains retrieving
     subdomains = set()
 
-    # VirusTotal
-    virustotal_subdomains = virustotal.get_subdomains_list(domain)
+    ### VirusTotal
+    virustotal_subdomains = virustotal.get_subdomains_list(web_domain)
 
     ### C99
     print("C99")
-    subdomain_result = c99.subdomain_finder(domain)
+    subdomain_result = c99.subdomain_finder(web_domain)
 
     ### IntelX
-    phonebook_search_id = intelx.phonebook_search(term=domain, target=1)
+    phonebook_search_id = intelx.phonebook_search(term=web_domain, target=1)
 
     if phonebook_search_id is not None:
         phonebook_search_result = intelx.phonebook_search_result(search_id=phonebook_search_id, limit=1000)
@@ -1097,6 +1245,7 @@ def main():
     
     # Merge the subdomains from C99, IntelX, and VirusTotal into a sorted (list)
     subdomains = sorted(set(subdomain_result).union(set(phonebook_result)).union(set(virustotal_subdomains)))
+    print(f"Subdomains found: {subdomains}")
 
     if len(subdomains) > 0:
         # Save the subdomains to a TXT file
@@ -1107,15 +1256,18 @@ def main():
         ### AbuseIPDB
         print("AbuseIPDB")
         hosts_ips = get_ips_from_hosts(subdomains)
+        print(f"Hosts IPs: {hosts_ips}")
+
+        ips = aggregate_values_from_dict_with_no_duplicates(hosts_ips)
 
         save_dict_to_json_file(
-            dictionary=abuseipdb.get_abused_ips_reports(ips=[val for _, val in hosts_ips.items() if val is not None]),
+            dictionary=abuseipdb.get_abused_ips_reports(ips=ips),
             file_path=os.path.join(BASE_DIR, domain, "abuseipdb", "abused_ips.json")
         )
     
         ### Shodan
         print("Shodan")
-        for ip in hosts_ips.values():
+        for ip in ips:
             # Get the host information from Shodan
             try:
                 host_info = shodan.host(ip)
@@ -1133,8 +1285,10 @@ def main():
                     file_path=os.path.join(BASE_DIR, domain, "shodan", ip, "shodan_info.json")
                 )
     
-
-    intelligent_search_id = intelx.intelligent_search(term=domain, media=24, buckets=INTELX_BUCKETS, maxresults=5000)
+    
+    ##### Leaked Credentials
+    ### IntelX
+    intelligent_search_id = intelx.intelligent_search(term=mail_domain, media=0, buckets=INTELX_BUCKETS, maxresults=5000)
 
     intelx_breach_files = os.path.join(BASE_DIR, domain, "intelx", "breach_files")
     credentials_path = os.path.join(BASE_DIR, domain, "intelx", "credentials.json")
@@ -1195,7 +1349,7 @@ def main():
             dictionary=emails_breaches,
             file_path=breaches_path
         )
-    
+
 
 if __name__ == "__main__":
     main()
