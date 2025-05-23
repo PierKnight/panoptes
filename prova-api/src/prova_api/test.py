@@ -11,6 +11,7 @@ import csv
 import time
 from bs4 import BeautifulSoup
 from shodan import Shodan
+import wappalyzer
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -35,6 +36,8 @@ SERVICES_EMPLOYED = [
     "sslshopper",
     "shodan",
     "dnsdumpster",
+    "mxtoolbox",
+    "wappalyzer",
 ]
 INTELX_BUCKETS = [
     "pastes",
@@ -585,13 +588,32 @@ class SSLShopper:
             driver.get(url)
 
             try:
-                return take_screenshot_with_selenium_by_class_name(driver, "checker_certs")
+                result = get_screenshot_and_element_with_selenium_by_class_name(driver, "checker_certs")
+                element = result.get("element")
+                image = result.get("image")
+
+                first_row = element.find_element(By.CSS_SELECTOR, 'tbody > tr:first-of-type')
+                cert_json = SSLShopper.get_certificate_json_from_list(content_list=first_row.text.split("\n"))
+
+                return {
+                    "certificate_json": cert_json,
+                    "certificate_image": image,
+                }
             except TimeoutException:
                 print("No certificate chain found, trying to get the summary instead")
                 
                 # Try to find the checker_messages element and take screenshot of it
                 try:
-                    return take_screenshot_with_selenium_by_class_name(driver, "checker_messages")                 
+                    result = get_screenshot_and_element_with_selenium_by_class_name(driver, "checker_messages")    
+                    
+                    # In this case we will not have the certificate JSON
+                    element = None
+                    image = result.get("image")    
+
+                    return {
+                        "certificate_json": None,
+                        "certificate_image": image,
+                    }   
                 except Exception as inner_e:
                     print(f"Failed to capture 'checker_messages' element: {inner_e}")
                     return {
@@ -643,6 +665,74 @@ class VirusTotal:
 ######################################## END CLASS VirusTotal ####################################
 
 
+@typechecked
+class MXToolbox:
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://mxtoolbox.com/api/v1/lookup"
+
+    '''
+    This function is used to retrieve the screenshot of the MXToolbox page.
+    It takes the following parameters:
+        action: str               # The action to perform (e.g., "spf", "dns", etc.)
+    It returns the URL of the screenshot.
+    '''
+    def __use_selenium_to_retrieve_screenshot(action: str, domain: str) -> Image.Image:
+        
+        selenium_url = f"https://mxtoolbox.com/SuperTool.aspx?action={action}%3a{domain}&run=toolpage#"
+        driver = webdriver.Chrome()
+        driver.get(selenium_url)
+        img = get_screenshot_and_element_with_selenium_by_class_name(driver, f"lookup-type-{action}")
+        image = img.get("image")
+        driver.quit()
+        return image
+
+
+    '''
+    The following function is used to perform info retrieving for a given action.
+    It takes the following parameters:
+        domain: str               # The domain to check
+        action: str               # The action to perform (e.g., "spf", "dmarc", etc.)
+    It returns a dictionary containing the JSON response and the screenshot of the action.
+    '''
+    def get_action_info_from_domain(self, domain: str, action: str) -> dict:
+        info = dict()
+        url = f"{self.base_url}/{action}/{domain}"
+        headers = {
+            "Authorization": self.api_key
+        }
+
+        try:
+            result = http.get(
+                url=url,
+                headers=headers
+            )
+            result.raise_for_status()
+
+            action_json = result.json()
+
+            info[f"{action}_json"] = action_json
+
+            # Selenium is used to retrieve the screenshot.
+            try:
+                img = MXToolbox.__use_selenium_to_retrieve_screenshot(action, domain)
+                info[f"{action}_image"] = img
+            except TimeoutException:
+                print(f"Timeout while trying to get the {action} image")
+                info[f"{action}_image"] = None
+
+        except http.exceptions.RequestException as e:
+            print(f"Network error during search request: {e}")
+        except json.JSONDecodeError:
+            print("Failed to parse search response JSON.")
+        except Exception as e:
+            print(f"Unexpected error while performing search request: {e}")
+        return info
+
+
+######################################## END CLASS MXToolbox ####################################
+
+
 class DNSDumpster:
     def __init__(self, api_key: str):
         self.base_url = "https://api.dnsdumpster.com"
@@ -673,6 +763,9 @@ class DNSDumpster:
             print(f"Unexpected error while performing search request: {e}")
         return dns_records
     
+######################################## END CLASS DNSDumpster ####################################
+
+
 '''
 The following function is used to retrieve the credentials from a file.
 It takes the following parameters:
@@ -855,8 +948,17 @@ def start_credentials_retrieving_from_folder(folder_path: str, credential_regex:
             credentials[email] = sorted(credentials[email])
     return credentials
 
+
+'''
+The following function is used to take a screenshot of an element with Selenium.
+It takes the following parameters:
+    driver: webdriver.Chrome   # The Selenium WebDriver
+    class_name: str            # The class name of the element to take a screenshot of
+It returns a dictionary with the element and the image.
+
+'''
 @typechecked
-def take_screenshot_with_selenium_by_class_name(driver: webdriver.Chrome, class_name: str) -> dict:
+def get_screenshot_and_element_with_selenium_by_class_name(driver: webdriver.Chrome, class_name: str) -> dict:
     WebDriverWait(driver, 30).until(
         EC.visibility_of_element_located((By.CLASS_NAME, class_name))
     )
@@ -874,10 +976,6 @@ def take_screenshot_with_selenium_by_class_name(driver: webdriver.Chrome, class_
     # Find the element containing the certificate chain information
     element = driver.find_element(By.CLASS_NAME, class_name)
 
-    if class_name == "checker_certs":
-        first_row = element.find_element(By.CSS_SELECTOR, 'tbody > tr:first-of-type')
-        cert_json = SSLShopper.get_certificate_json_from_list(content_list=first_row.text.split("\n"))
-
     # Get the size of the element
     element_height = element.size['height']
     element_width = element.size['width']
@@ -889,11 +987,11 @@ def take_screenshot_with_selenium_by_class_name(driver: webdriver.Chrome, class_
     driver.execute_script("arguments[0].scrollIntoView(true);", element)
 
     image_binary = element.screenshot_as_png
-    cert_img = Image.open(io.BytesIO(image_binary))
+    img = Image.open(io.BytesIO(image_binary))
 
     return {
-        "certificate_json": cert_json if class_name == "checker_certs" else {},
-        "certificate_image": cert_img,
+        "element": element,
+        "image": img,
     }
 
 
@@ -1146,6 +1244,36 @@ def get_groomed_dnsdumpster_info(dns_records: dict) -> dict:
     return groomed_info
     
 
+def get_name_and_info_from_dicts_in_list(entries: list[dict]) -> list:
+    return [
+        {
+            "Name": entry["Name"],
+            "Info": entry["Info"],
+        } for entry in entries
+    ]
+
+@typechecked
+def get_groomed_mxtoolbox_lookup(info: dict) -> dict:
+    groomed_info = dict()
+
+    # Get the command argument (in this case the domain)
+    groomed_info["CommandArgument"] = info.get("CommandArgument", "")
+    groomed_info["TimeRecorded"] = info.get("TimeRecorded", "")
+    groomed_info["Command"] = info.get("Command", "")
+    groomed_info["Records"] = info.get("Records", [])
+    
+    if "Failed" in info:
+        # Get Name and Info from each failed entry
+        groomed_info["Failed"] = get_name_and_info_from_dicts_in_list(info["Failed"])
+    if "Warnings" in info:
+        # Get Name and Info from each warnings entry
+        groomed_info["Warnings"] = get_name_and_info_from_dicts_in_list(info["Warnings"])
+    if "Passed" in info:
+        # Get Name and Info from each passed entry
+        groomed_info["Passed"] = get_name_and_info_from_dicts_in_list(info["Passed"])
+    return groomed_info
+
+
 '''
 The following function is used to aggregate the values from a dictionary without duplicates.
 It takes the following parameters:
@@ -1161,10 +1289,10 @@ def aggregate_values_from_dict_with_no_duplicates(dictionary: dict) -> list[str]
 def main():
     api_keys = retrieve_api_keys()
 
-    web_domain = "internet-idee.net"
-    mail_domain = "internet-idee.net"
-    #web_domain = "mediocrati.it"
-    #mail_domain = "mediocrati.bcc.it"
+    #web_domain = "internet-idee.net"
+    #mail_domain = "internet-idee.net"
+    web_domain = "mediocrati.it"
+    mail_domain = "mediocrati.bcc.it"
     domain = web_domain if web_domain else mail_domain
     # Create a directory for the domain if it doesn't exist
     create_working_directories(domain, SERVICES_EMPLOYED)
@@ -1178,8 +1306,79 @@ def main():
     shodan = Shodan(key=api_keys["shodan"])
     virustotal = VirusTotal(api_key=api_keys["virustotal"])
     dnsdumpster = DNSDumpster(api_key=api_keys["dnsdumpster"])
+    mxtoolbox = MXToolbox(api_key=api_keys["mxtoolbox"])
 
     credential_regex = rf"{EMAIL_WITHOUT_DOMAIN_REGEX}{mail_domain}:\S+"
+    website_url = f"https://{web_domain}"
+
+    try:
+        result = http.get(
+            url=website_url,
+            timeout=3
+        )
+    except http.Timeout as e:
+        website_url = f"https://www.{web_domain}"
+
+
+    ##### Web app fingerprinting
+    # Wappalyzer
+    
+    # With options
+    results = wappalyzer.analyze(
+        url=website_url,
+        scan_type='balanced',  # 'fast', 'balanced', or 'full'
+        threads=8,
+        cookie='sessionid=abc123'
+    )
+
+    save_dict_to_json_file(
+        dictionary=results,
+        file_path=os.path.join(BASE_DIR, domain, "wappalyzer", "wappalyzer_info.json")
+    )
+    '''
+    ### WebTech
+    # make sure to have the latest db version
+    webtech.database.update_database(force=True)
+    # you can use options, same as from the command line
+    wt = webtech.WebTech(options={'json': True})
+
+    # scan a single website
+    try:
+        report = wt.start_from_url(f"https://{web_domain}")
+        save_dict_to_json_file(
+            dictionary=report,
+            file_path=os.path.join(BASE_DIR, domain, "webtech", "webtech_info.json")
+        )
+    except webtech.utils.ConnectionException:
+        print("Connection error")
+    
+    ##### SPF and DMARC record lookup
+    ### MXToolbox
+    spf_info = mxtoolbox.get_action_info_from_domain(domain=web_domain, action="spf")
+    dmarc_info = mxtoolbox.get_action_info_from_domain(domain=web_domain, action="dmarc")
+
+    save_dict_to_json_file(
+        dictionary=get_groomed_mxtoolbox_lookup(info=spf_info.get("spf_json")),
+        file_path=os.path.join(BASE_DIR, domain, "mxtoolbox", "spf_info.json")
+    )
+
+    save_dict_to_json_file(
+        dictionary=get_groomed_mxtoolbox_lookup(info=dmarc_info.get("dmarc_json")),
+        file_path=os.path.join(BASE_DIR, domain, "mxtoolbox", "dmarc_info.json")
+    )
+
+
+    spf_img = spf_info.get("spf_image")
+    if spf_img is not None:
+        # Save the image
+        spf_img.save(os.path.join(BASE_DIR, domain, "mxtoolbox", "spf_record.png"))
+
+    dmarc_img = dmarc_info.get("dmarc_image")
+    if dmarc_img is not None:
+        # Save the image
+        dmarc_img.save(os.path.join(BASE_DIR, domain, "mxtoolbox", "dmarc_record.png"))
+    # Screenshot of DMARC and SPF info
+
     
     ##### DNS Analysis
     ### DNSDumpster
@@ -1349,7 +1548,7 @@ def main():
             dictionary=emails_breaches,
             file_path=breaches_path
         )
-
+    '''
 
 if __name__ == "__main__":
     main()
