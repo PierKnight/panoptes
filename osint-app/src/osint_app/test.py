@@ -26,6 +26,9 @@ import sys
 
 import socket
 
+# Process files in parallel
+import concurrent.futures
+    
 
 EMAIL_WITHOUT_DOMAIN_REGEX = r"[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`{|}~-]+)*@"
 SERVICES_EMPLOYED = [
@@ -60,10 +63,11 @@ HAVEIBEENPWNED_REQUEST_DELAY_IN_SECONDS = 1
 @typechecked
 def retrieve_base_urls() -> dict:
     base_urls = dict()
-
+    config_path = os.getenv("API_BASE_URLS_PATH", "/home/kali/iei/api-base-urls.json")
+    
     try:
-        with open("/home/kali/iei/api-base-urls.json", "r") as f:
-            base_urls = json.loads(f)
+        with open(config_path, "r") as f:
+            base_urls = json.load(f)  # Corrected from json.loads(f)
     except FileNotFoundError:
         print("Error: Base URLs file not found.")
     except PermissionError:
@@ -211,6 +215,32 @@ class IntelX:
     It returns the id to be used to retrieve the search results
     '''
     def phonebook_search(self, term: str, maxresults: int = 1000, media: int = 0, terminate=None, target: int = 0) -> str | None:
+        """Launch a *Phonebook* search on IntelX.
+
+        Args:
+            term:       Search string – typically a domain name, e-mail address,
+                        IPv4/IPv6 or hash.
+            maxresults: Maximum number of result records to be collected by
+                        IntelX (server-side limit, default 1 000).
+            media:      IntelX *media* code (0–24) that restricts the search to
+                        specific data types.  The default value 0 means “all media”.
+            terminate:  List of other search IDs that should be cancelled before
+                        this one starts.  *None* (default) means no termination.
+
+            target: IntelX *target* selector  
+                    0 = all object types,  
+                    1 = domains,  
+                    2 = e-mail addresses,  
+                    3 = IPv4/6, etc.
+
+        Returns:
+            The newly issued **search ID** as a string, or *None* if the HTTP
+            request failed or the response could not be decoded.
+
+        Notes:
+            The returned ID is required later when you call
+            `phonebook_search_result()` to pull down the actual rows.
+        """
         if terminate is None:
             terminate = []
 
@@ -644,7 +674,7 @@ class VirusTotal:
     '''
     def get_subdomains_list(self, domain: str) -> list[str]:
         url = f"{self.base_url}/domains/{domain}/subdomains"
-        headers = {"x-apikey": "267b478d270e0ab7e101b2b9c039e7c6ebeca93adb23f26a30e3b22b686c6d89"}
+        headers = {"x-apikey": self.api_key}
         subdomains_list = list()
         try:
             result = http.get(
@@ -677,15 +707,21 @@ class MXToolbox:
         action: str               # The action to perform (e.g., "spf", "dns", etc.)
     It returns the URL of the screenshot.
     '''
+
     def __use_selenium_to_retrieve_screenshot(action: str, domain: str) -> Image.Image:
-        
         selenium_url = f"https://mxtoolbox.com/SuperTool.aspx?action={action}%3a{domain}&run=toolpage#"
-        driver = webdriver.Chrome()
-        driver.get(selenium_url)
-        img = get_screenshot_and_element_with_selenium_by_class_name(driver, f"lookup-type-{action}")
-        image = img.get("image")
-        driver.quit()
-        return image
+        driver = None
+        try:
+            driver = webdriver.Chrome(options=webdriver.ChromeOptions().add_argument("--headless"))
+            driver.get(selenium_url)
+            img = get_screenshot_and_element_with_selenium_by_class_name(driver, f"lookup-type-{action}")
+            return img.get("image")
+        except Exception as e:
+            print(f"Error taking screenshot: {e}")
+            return None
+        finally:
+            if driver:
+                driver.quit()
 
 
     '''
@@ -913,9 +949,6 @@ def start_credentials_retrieving_from_folder(folder_path: str, credential_regex:
         if file != "Info.csv" and file.lower().split(".")[-1] in ["txt", "csv"]
     ]
     
-    # Process files in parallel
-    import concurrent.futures
-    
     with concurrent.futures.ProcessPoolExecutor() as executor:
         # Create a dictionary to track futures
         future_to_file = {
@@ -1090,35 +1123,74 @@ def get_breached_emails(credentials_path: str) -> set[str]:
     return set()
 
 
-'''
-The following function is used to retrieve the IP address from a host.
-It takes the following parameters:
-    host: str                # The host to retrieve the IP address from
-It returns the IP address of the host.
-'''
 @typechecked
 def get_all_ips_from_host(host: str) -> list[str]:
-    """Restituisce tutti gli indirizzi IP associati a un nome host."""
-    _, _, ip_addresses = socket.gethostbyname_ex(host)
-    return ip_addresses
+    """Retrieve all IP addresses associated with a hostname.
+    
+    Args:
+        host (str): The hostname to resolve.
+        
+    Returns:
+        list[str]: List of IP addresses associated with the hostname.
+        
+    Raises:
+        socket.gaierror: If the hostname cannot be resolved.
+    """
+    try:
+        _, _, ip_addresses = socket.gethostbyname_ex(host)
+        return ip_addresses
+    except socket.gaierror as e:
+        print(f"Unable to resolve host {host}: {e}")
+        return []
+    except Exception as e:
+        print(f"Unexpected error while resolving host {host}: {e}")
+        return []
 
-'''
-The following function is used to retrieve the IP addresses from a list of hosts.
-It takes the following parameters:
-    hosts: list[str]         # The list of hosts to retrieve the IP addresses from
-It returns a dictionary with the hosts as keys and the IP addresses as values.
-'''
 @typechecked
-def get_ips_from_hosts(hosts: list[str]) -> dict[str, list[str]]:
-    ip_addresses = dict()
-    for host in hosts:
+def get_ips_from_hosts(hosts: list[str], max_workers: int = 20, timeout: int = 10) -> dict[str, list[str]]:
+    """Resolve multiple hostnames to their IP addresses in parallel.
+    
+    Uses a thread pool to perform DNS resolution in parallel, significantly
+    improving performance when processing many hostnames.
+    
+    Args:
+        hosts (list[str]): List of hostnames to resolve.
+        max_workers (int, optional): Maximum number of parallel workers. Defaults to 20.
+        timeout (int, optional): Maximum time in seconds to wait for resolution. Defaults to 10.
+        
+    Returns:
+        dict[str, list[str]]: Dictionary mapping hostnames to lists of IP addresses.
+    """
+    ip_addresses = {}
+    
+    # Define a helper function to process each host
+    def process_host(host):
         try:
             ips = get_all_ips_from_host(host)
-            ip_addresses[host] = ips
-        except socket.gaierror:
-            print(f"Error: Unable to resolve host {host}.")
+            return host, ips
         except Exception as e:
-            print(f"An unexpected error occurred while resolving host {host}: {e}")
+            print(f"Error processing {host}: {e}")
+            return host, []
+    
+    # Use ThreadPoolExecutor for parallel DNS resolution
+    # (ThreadPoolExecutor is better than ProcessPoolExecutor for I/O-bound tasks)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Start the operations and mark each future with its hostname
+        future_to_host = {executor.submit(process_host, host): host for host in hosts}
+        
+        # Process results as they complete
+        for future in concurrent.futures.as_completed(future_to_host, timeout=timeout):
+            try:
+                host, ips = future.result()
+                if ips:  # Only add hosts that resolved successfully
+                    ip_addresses[host] = ips
+            except concurrent.futures.TimeoutError:
+                host = future_to_host[future]
+                print(f"DNS resolution timed out for {host}")
+            except Exception as e:
+                host = future_to_host[future]
+                print(f"Exception while processing {host}: {e}")
+    
     return ip_addresses
 
 '''
@@ -1158,7 +1230,7 @@ def get_groomed_shodan_info(host_info: dict):
             version = to_add["version"]
 
         name = f"{port}/{transport}/{product}/{version}"
-        re.sub(name, "/{2,}", "/")          # Remove multiple slashes caused by empty fields
+        re.sub("/{2,}", "/", name)          # Remove multiple slashes caused by empty fields
         name = re.sub(r"^/|/$", "", name)   # Remove leading and trailing slashes
 
         to_add["name"] = name
@@ -1297,17 +1369,17 @@ def main():
     # Create a directory for the domain if it doesn't exist
     create_working_directories(domain, SERVICES_EMPLOYED)
 
-    intelx = IntelX(api_key=api_keys["intelx"])
-    haveibeenpwned = HaveIBeenPwned(api_key=api_keys["haveibeenpwned"])
-    c99 = C99(api_key=api_keys["c99"])
-    abuseipdb = AbuseIPDB(api_key=api_keys["abuseipdb"])
+    intelx = IntelX(api_key=os.getenv("INTELX"))
+    haveibeenpwned = HaveIBeenPwned(api_key=os.getenv("HAVEIBEENPWNED"))
+    c99 = C99(api_key=os.getenv("C99"))
+    abuseipdb = AbuseIPDB(api_key=  os.getenv("ABUSEIPDB"))
     httpsecurityheaders = HTTPSecurityHeaders()
     sslshopper = SSLShopper()
-    shodan = Shodan(key=api_keys["shodan"])
-    virustotal = VirusTotal(api_key=api_keys["virustotal"])
-    dnsdumpster = DNSDumpster(api_key=api_keys["dnsdumpster"])
-    mxtoolbox = MXToolbox(api_key=api_keys["mxtoolbox"])
-
+    shodan = Shodan(key=os.getenv("SHODAN"))
+    virustotal = VirusTotal(api_key=os.getenv("VIRUSTOTAL"))
+    dnsdumpster = DNSDumpster(api_key=os.getenv("DNSDUMPSTER"))
+    mxtoolbox = MXToolbox(api_key=os.getenv("MXTOOLBOX"))
+     
     credential_regex = rf"{EMAIL_WITHOUT_DOMAIN_REGEX}{mail_domain}:\S+"
     website_url = f"https://{web_domain}"
 
@@ -1335,22 +1407,7 @@ def main():
         dictionary=results,
         file_path=os.path.join(BASE_DIR, domain, "wappalyzer", "wappalyzer_info.json")
     )
-    '''
-    ### WebTech
-    # make sure to have the latest db version
-    webtech.database.update_database(force=True)
-    # you can use options, same as from the command line
-    wt = webtech.WebTech(options={'json': True})
 
-    # scan a single website
-    try:
-        report = wt.start_from_url(f"https://{web_domain}")
-        save_dict_to_json_file(
-            dictionary=report,
-            file_path=os.path.join(BASE_DIR, domain, "webtech", "webtech_info.json")
-        )
-    except webtech.utils.ConnectionException:
-        print("Connection error")
     
     ##### SPF and DMARC record lookup
     ### MXToolbox
@@ -1548,7 +1605,7 @@ def main():
             dictionary=emails_breaches,
             file_path=breaches_path
         )
-    '''
+    
 
 if __name__ == "__main__":
     main()

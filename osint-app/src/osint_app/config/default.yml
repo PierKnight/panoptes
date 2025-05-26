@@ -1,0 +1,12 @@
+base_dir: ~/osint-reports
+
+api_keys:
+  intelx: ${INTELX}
+  shodan: ${SHODAN}
+  haveibeenpwned: ${HAVEIBEENPWNED}
+  virustotal: ${VIRUSTOTAL}
+  mxtoolbox: ${MXTOOLBOX}
+  c99: ${C99}
+  dnsdumpster: ${DNSDUMPSTER}
+
+email_without_domain_regex: "[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`{|}~-]+)*@"

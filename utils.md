@@ -22,4 +22,4 @@ Host compromessi: [AbuseIPDB](https://www.abuseipdb.com/)
 ## Poetry
 Disabilita keyring
 
-	poetry config keyring.enabled false
+poetry config keyring.enabled false
