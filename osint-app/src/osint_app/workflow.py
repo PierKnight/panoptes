@@ -86,9 +86,10 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
     # 2.5) Understand which is the actual website URL
     website_url = get_website_url(domain)
     log.info("Website URL is %s", website_url)
-    log.info("Mail domain for credential hunting: %s", mail_domain or "None")
-
+    
+    # If mail_domain is not provided, we will use the domain as the mail domain
     mail_domain = mail_domain or domain
+    log.info("Mail domain is %s", mail_domain)
 
     # 3) run each service  ---------------------------------------
     '''
@@ -135,7 +136,7 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
         if dmarc_img is not None:
             # Save the image
             dmarc_img.save(ws.file("mxtoolbox", "dmarc.png"))
-            log.info("DMARC img saved to %s", ws.file("mxtoolbox", "dmarc.png")))
+            log.info("DMARC img saved to %s", ws.file("mxtoolbox", "dmarc.png"))
 
 
     # --- DNSDumpster DNS records lookup ---------------------------------
@@ -175,7 +176,7 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
                 json.dumps(certificate_info["certificate_json"], indent=2)
             )
     
-
+    '''
     # --- Subdomains retrieval -----------------------------------
     subdomains = set()
 
@@ -214,14 +215,18 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
     subdomains = sorted(subdomains)
     log.info("All subdomains found: %s", subdomains)
     subdomains_str = "\n".join(subdomains)
-    ws.file("subdomains", "subdomains.txt").write_text(subdomains_str)
+    ws.file("subdomains", "subdomains_list.txt").write_text(subdomains_str)
 
     if len(subdomains) > 0:
         # --- AbuseIPDB abuse reports ---------------------------------
-        hosts_ips = get_ips_from_hosts(subdomains)
+        subdomains_ips = get_ips_from_hosts(subdomains)
+        ws.file("subdomains", "subdomains_ips.json").write_text(
+            json.dumps(subdomains_ips, indent=2)
+        )
+        
         abuseipdb = clients.get("abuseipdb")
 
-        ips = aggregate_values_from_dict_with_no_duplicates(hosts_ips)
+        ips = aggregate_values_from_dict_with_no_duplicates(subdomains_ips)
 
         if abuseipdb:
             abused_ips_reports = abuseipdb.get_abused_ips_reports(ips)
@@ -238,25 +243,26 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
         if shodan:
             for ip in ips:
                 try:
-                    result = shodan.host(ip)        # raw dict
-                    groomed = grooming.get_groomed_shodan_info(result)
-                    (ws.file("shodan", f"{ip}.json")).write_text(
-                        json.dumps(groomed, indent=2)
-                    )
+                    result = shodan.host(ip)  
+                    if result != {}:      # raw dict
+                        groomed = grooming.get_groomed_shodan_info(result)
+                        (ws.file("shodan", f"{ip}.json")).write_text(
+                            json.dumps(groomed, indent=2)
+                        )
                 except Exception as e:
                     log.error("Shodan failed for %s: %s", ip, e, exc_info=True)
 
-    '''
     
     # --- IntelX Leaked Credentials Retrieval ---------------------------------------
     intelx = clients.get("intelx")
     if intelx:
         intelligent_search_id = intelx.intelligent_search(
-            term=mail_domain, media=0, buckets=INTELX_BUCKETS, maxresults=5000
+            term=mail_domain, media=0, maxresults=5000
         )
 
         if intelligent_search_id:
             filetype = "zip"
+            print(f"Intelligent search ID: {intelligent_search_id}")
             content = intelx.intelligent_search_export(filetype=filetype, search_id=intelligent_search_id, limit=5000)
             if content:
                 if content is not None:
@@ -287,7 +293,7 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
                         log.info("Leaked credentials saved to %s", ws.file("intelx", "leaked_credentials.json"))
 
                         # Delete the breach files directory after processing (has files in it)
-                        shutil.rmtree(intelx_breach_files)
+                        # shutil.rmtree(intelx_breach_files)
                 else:
                     log.error("Intelligent search export result is empty")
     
@@ -312,7 +318,7 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
             )
     
     # keep adding blocks for other services …
-
+     
     # 4) post-processing / diffing / report generation ----------
     # (left as TODO – you will call your processing & report modules here)
     

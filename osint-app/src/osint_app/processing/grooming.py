@@ -32,8 +32,8 @@ def get_groomed_shodan_info(raw: dict):
     """
     groomed_info = dict()
     # Exposed ports
-    groomed_info["asn"] = raw["asn"]
-    groomed_info["isp"] = raw["isp"]
+    groomed_info["asn"] = raw.get("asn", "")
+    groomed_info["isp"] = raw.get("isp", "")
 
     old_data = raw.get("data", [])
     new_data = list()
@@ -45,15 +45,15 @@ def get_groomed_shodan_info(raw: dict):
         for field in exposed_service_as_is:
             if field in exposed_service:
                 to_add[field] = exposed_service[field]
-        
-        port = raw.get("port", "")
-        transport = raw.get("transport", "")
-        product = raw.get("product", "")
-        version = raw.get("version", "")
+        port = exposed_service.get("port", "")
+        transport = exposed_service.get("transport", "")
+        product = exposed_service.get("product", "")
+        version = exposed_service.get("version", "")
 
         name = f"{port}/{transport}/{product}/{version}"
         re.sub("/{2,}", "/", name)          # Remove multiple slashes caused by empty fields
-        name = re.sub(r"^/|/$", "", name)   # Remove leading and trailing slashes
+        while name.startswith("/") or name.endswith("/"):
+            name = re.sub(r"^/|/$", "", name)   # Remove leading and trailing slashes
 
         to_add["name"] = name
         
@@ -139,6 +139,15 @@ def get_groomed_dnsdumpster_info(dns_records: dict) -> dict:
 
 @typechecked
 def get_groomed_mxtoolbox_lookup(info: dict) -> dict:
+    """
+    Extracts and grooms MXToolbox lookup information from the raw response.
+    Args:
+        info (dict): The raw MXToolbox lookup information.
+    Returns:
+        dict: A dictionary containing groomed MXToolbox lookup information.
+    Raises:
+        KeyError: If the expected keys are not found in the raw data.
+    """
     groomed_info = dict()
 
     # Get the command argument (in this case the domain)

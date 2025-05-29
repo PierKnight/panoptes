@@ -1,49 +1,118 @@
 # Informal Description
 ## Tables
 
-- **domains**:
-    - `domain_id` (UUID)
+- **client**:
+    - `id` (UUID)
     - `name` (string)
+
+- **web_domains**:
+    - `id` (UUID)
+    - `name` (string)
+    - `client_id` (UUID) — foreign key to `client.client_id`
+
+- **mail_domains**:
+    - `id` (UUID)
+    - `name` (string)
+    - `client_id` (UUID) — foreign key to `client.client_id`
 
 - **subdomains**:
-    - `subdomain_id` (UUID)
+    - `id` (UUID)
     - `name` (string)
-    - `domain_id` (UUID)
+    - `web_domain_id` (UUID)
 
 - **hosts**:
-    - `host_id` (UUID)
+    - `id` (UUID)
     - `ip_address` (string)
+    - `asn` (string) — e.g., `AS12345`
+    - `isp` (string) — e.g., `GOOGLE LLC`
     - `exposed_ports` (JSON) — [example](#exposed_ports)
     - `cve` (JSON) — [example](#cve)
-    - `abused` (boolean)
 
 - **subdomains_hosts**:
     - `id` (UUID)
-    - `host_id` (UUID)
-    - `subdomain_id` (UUID)
+    - `host_id` (UUID) — foreign key to `hosts.id`
+    - `subdomain_id` (UUID) — foreign key to `subdomains.id`
 
+- **ip_abuses**:
+    - `id` (UUID)
+    - `date_reported` (date)
+    - `comment` (string)
+    - `categories` (JSON) — e.g., `["spam", "malware"]`
+    - `host_id` (UUID) — foreign key to `hosts.id`
+
+- **dns_records**:
+    - `id` (UUID)
+    - `records` (JSON) — e.g., [example](#dns_records)
+
+- **dmarc_checks**:
+    - `id` (UUID)
+    - `record` (string) — e.g., `v=DMARC1; p=none; rua=mailto:
+    - `image` (blob) — base64 encoded image of the DMARC record
+    - `failed` (JSON) — e.g., [example](#failed_warnings_passed)
+    - `warnings` (JSON) — e.g., [example](#failed_warnings_passed)
+    - `passed` (JSON) — e.g., [example](#failed_warnings_passed)
+    - `web_domain_id` (UUID) — foreign key to `web_domains.id`
+
+- **spf_checks**:
+    - `id` (UUID)
+    - `record` (string) — e.g., `v=spf1 include:_spf.example.com ~all`
+    - `image` (blob) — e.g., base64 encoded image of SPF record
+    - `failed` (JSON) — e.g., [example](#failed_warnings_passed)
+    - `warnings` (JSON) — e.g., [example](#failed_warnings_passed)
+    - `passed` (JSON) — e.g., [example](#failed_warnings_passed)
+    - `web_domain_id` (UUID) — foreign key to `web_domains.id`
+ 
 - **emails**:
-    - `email_id` (UUID)
+    - `id` (UUID)
     - `address` (string)
-    - `domain_id` (UUID)
+    - `mail_domain_id` (UUID) — foreign key to `mail_domains.id`
 
 - **data_breaches**:
     (To be populated as new data breaches are discovered via API responses)
-    - `data_breach_id` (UUID)
-    - `name` (string)
+    - `id` (UUID)
+    - `title` (string)
     - `date` (date)
-    - `related_site` (string)
+    - `data_classes` (JSON) — e.g., `["Email addresses", "Passwords"]`
+    - `description` (string)
 
 - **emails_data_breaches**:
-    - `email_id` (UUID)
-    - `data_breach_id` (UUID)
+    (An instance of this table represents an email being part of a data breach)
+    - `id` (UUID)
+    - `email_id` (UUID) — foreign key to `emails.id`
+    - `data_breach_id` (UUID) — foreign key to `data_breaches.id`
 
 - **data_leaks**:
     (An instance of this table represents a leak)
-    - `data_leak_id` (UUID)
+    - `id` (UUID)
     - `leak` (string) — e.g., `info@example.com:password`
-    - `file_name` (string)
-    - `email_id` (UUID)
+    - `email_id` (UUID) — foreign key to `emails.id`
+
+- **missing_http_headers**:
+    (An instance of this table represents a missing HTTP header)
+    - `id` (UUID)
+    - `missing_headers` (JSON) — e.g., `["X-Content-Type-Options", "X-Frame-Options"]`
+    - `web_domain_id` (UUID) — foreign key to `web_domains.id`
+
+- **technologies**:
+    - `id` (UUID)
+    - `name` (string) — e.g., `Apache`, `Nginx`
+    - `version` (string) — e.g., `2.4.58`
+    - `category` (string) — e.g., `Web Server`, `Database`
+    - `web_domain_id` (UUID) — foreign key to `web_domains.id`
+
+- **ssl_certificates**:
+    - `id` (UUID)
+    - `common_name` (string) — e.g., `example.com`
+    - `organization` (string) — e.g., `Example Inc.`
+    - `issuer` (string) — e.g., `Let's Encrypt`
+    - `valid_from` (date)
+    - `valid_to` (date)
+    - `sans` (JSON) — e.g., `["example.com", "www.example.com"]`
+    - `location` (JSON) — e.g., `["Roma", "Lazio", "IT"]`
+    - `serial_number` (string) — e.g., `1234567890abcdef`
+    - `signature_algorithm` (string) — e.g., `SHA256withRSAEncryption`
+    - `image` (blob) — base64 encoded image of the SSL certificate
+    - `web_domain_id` (UUID) — foreign key to `web_domains.id`
 
 
 ## Examples
@@ -52,24 +121,27 @@
 {
     "22": {
         "protocol": "SSH",
-        "softwares": [
-            "OpenSSH",
-            "Dropbear"
-        ]
+        "os": "Linux",
+        "product": "OpenSSH",
+        "transport": "tcp",
+        "version": "9.6p1 Ubuntu 3ubuntu13.11",
+        "name": "22/tcp/OpenSSH/9.6p1 Ubuntu 3ubuntu13.11"
+        
     },
     "80": {
         "protocol": "HTTP",
-        "softwares": [
-            "Apache",
-            "Nginx"
-        ]
+        "os": null,
+        "product": "Apache",
+        "version": "2.4.58",
+        "transport": "tcp",
+        "name": "80/tcp/Apache/2.4.58"
     },
     "443": {
-        "protocol": "HTTPS",
-        "softwares": [
-            "Apache",
-            "Nginx"
-        ]
+        "os": null,
+        "product": "Apache httpd",
+        "transport": "tcp",
+        "version": "2.4.58",
+        "name": "443/tcp/Apache httpd/2.4.58"
     }
 }
 ```
@@ -78,123 +150,68 @@
 ```JSON
 {
     "CVE-2023-1234": {
-        "description": "Description of CVE-2023-1234",
-        "severity": "high"
+        "summary": "Description of CVE-2023-1234",
+        "cvs"
     },
     "CVE-2023-5678": {
-        "description": "Description of CVE-2023-5678",
+        "summary": "Description of CVE-2023-5678",
         "severity": "medium"
     }
 }
 ```
 
-# DBML
-```sql
-Table domains {
-    domain_id uuid [default: "gen_random_uuid()", primary key]
-    name varchar [not null]
+### dns_records: 
+```JSON
+{
+    "a": {
+        "host": "mx.example.com",
+        "ips": [
+            {
+                "asn": "12345",
+                "asn_name": "ARUBA-ASN, IT",
+                "ip": "REDACTED"
+            }
+        ]
+    },
+    "cname": {},
+    "mx": {
+        "host": "10 mx.example.com",
+        "ips": [
+            {
+                "asn": "12345",
+                "asn_name": "ARUBA-ASN, IT",
+                "ip": "REDACTED"
+            }
+        ]
+    },
+    "ns": {
+        "host": "dns3.arubadns.net",
+        "ips": [
+            {
+                "asn": "12345",
+                "asn_name": "ARUBA-ASN, IT",
+                "ip": "REDACTED"
+            }
+        ]
+    },
+    "total_a_recs": {},
+    "txt": [
+        "\"MS=ms00000000\"",
+        "\"3600\"",
+        "\"v=spf1 include:_spf.aruba.it ~all\"",
+        "\"@\"",
+    ]
 }
+```
 
-Table subdomains {
-    subdomain_id uuid [default: "gen_random_uuid()", primary key]
-    name varchar [not null]
-    domain_id uuid [ref: > domains.domain_id]
-}
-
-Table hosts {
-    host_id uuid [default: "gen_random_uuid()", primary key]
-    ip_address varchar [not null]
-    exposed_ports json [not null]
-    cve json [not null] 
-    abused boolean [default: false]
-}
-
-Table subdomains_hosts {
-    id uuid [default: "gen_random_uuid()", primary key]
-    host_id uuid [ref: > hosts.host_id]
-    subdomain_id uuid [ref: > subdomains.subdomain_id]
-}
-
-Table emails {
-    email_id uuid [default: "gen_random_uuid()", primary key]
-    address varchar [not null]
-    domain_id uuid [ref: > domains.domain_id]
-}
-
-Table data_breaches {
-    data_breach_id uuid [default: "gen_random_uuid()", primary key]
-    name varchar [not null]
-    date date [not null]
-    related_site varchar
-}
-
-Table emails_data_breaches {
-    id uuid [default: "gen_random_uuid()", primary key]
-    email_id uuid [ref: > emails.email_id]
-    data_breach_id uuid [ref: > data_breaches.data_breach_id]
-}
-
-Table data_leaks {
-    data_leak_id uuid [default: "gen_random_uuid()", primary key]
-    leak varchar [not null]
-    file_name varchar [not null]
-    email_id uuid [ref: > emails.email_id]
-}
+### failed_warnings_passed:
+```JSON
+[
+    {
+        "Name": "DMARC Policy Not Enabled",
+        "Info": "DMARC Quarantine/Reject policy not enabled"
+    }
+]
 ```
 
 # DDL
-```sql
-CREATE TABLE domains (
-    domain_id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    name VARCHAR NOT NULL
-);
-
-CREATE TABLE subdomains (
-    subdomain_id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    name VARCHAR NOT NULL,
-    domain_id uuid REFERENCES domains(domain_id)
-);
-
-CREATE TABLE hosts (
-    host_id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    ip_address VARCHAR NOT NULL,
-    exposed_ports JSON NOT NULL,
-    cve JSON NOT NULL,
-    abused BOOLEAN DEFAULT FALSE
-);
-
-CREATE TABLE subdomains_hosts (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    host_id uuid REFERENCES hosts(host_id),
-    subdomain_id uuid REFERENCES subdomains(subdomain_id)
-);
-
-CREATE TABLE emails (
-    email_id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    address VARCHAR NOT NULL,
-    domain_id uuid REFERENCES domains(domain_id)
-);
-
-CREATE TABLE data_breaches (
-    data_breach_id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    name VARCHAR NOT NULL,
-    date DATE NOT NULL,
-    related_site VARCHAR NOT NULL
-);
-
-CREATE TABLE emails_data_breaches (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    email_id uuid REFERENCES emails(email_id),
-    data_breach_id uuid REFERENCES data_breaches(data_breach_id)
-);
-
-CREATE TABLE data_leaks (
-    data_leak_id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    leak VARCHAR NOT NULL,
-    file_name VARCHAR,
-    email_id uuid REFERENCES emails(email_id)
-);
-```
-
-# ERD
-![The Entity-Relation Diagram](db_erd.png)
