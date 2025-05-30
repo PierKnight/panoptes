@@ -51,7 +51,7 @@ class HaveIBeenPwned(BaseHTTPClient):
         except RequestException as e:      
             status_code = e.response.status_code
             if status_code == 404:
-                log.error(f"{account} was not found in any breaches")
+                log.info(f"{account} was not found in any breaches")
             elif status_code == 429:
                 log.error("Too many requests: slow down!")
         except Exception as e:

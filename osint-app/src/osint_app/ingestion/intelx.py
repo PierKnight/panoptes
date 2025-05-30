@@ -12,7 +12,7 @@ from typeguard import typechecked
 
 @typechecked
 class IntelX(BaseHTTPClient):
-    """Thin wrapper around the IntelX v2 API."""
+    """Wrapper around the IntelX v2 API."""
 
     BASE_URL = "https://2.intelx.io"
 
@@ -62,7 +62,15 @@ class IntelX(BaseHTTPClient):
 
         try:
             resp = self._post(url, json=payload, headers={"x-key": self._api_key})
-            return resp.json().get("id")        # type: ignore[return-value]
+            resp_json = resp.json()
+            status = int(resp_json.get("status"))
+            if status == 1:
+                log.error("intelx/intelligent/search term is invalid: %s", term)
+            elif status == 2:
+                log.error("intelx/intelligent/search max concurrent searches per API key exceeded")
+                
+            return resp_json.get("id")        # type: ignore[return-value]
+
         except Exception as exc:                # noqa: BLE001
             log.error("intelx intelligent_search failed: %s", exc, exc_info=True)
             return None
@@ -97,10 +105,12 @@ class IntelX(BaseHTTPClient):
         url = f"{self.BASE_URL}/intelligent/search/export"
 
         try:
-            resp = self._get(url, params=params, timeout=300)
+            resp = self._get(url, params=params, timeout=600)
+            if resp.status_code == 204:
+                log.error("intelx /intelligent/search/export: no content for search with ID %s", search_id)
             return resp.content
         except Exception as exc:        # noqa: BLE001
-            log.error("intelx intelligent_search_export failed: %s", exc, exc_info=True)
+            log.error("intelx /intelligent/search/export failed: %s", exc, exc_info=True)
             return None
 
 

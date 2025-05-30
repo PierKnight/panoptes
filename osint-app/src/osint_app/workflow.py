@@ -92,7 +92,7 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
     log.info("Mail domain is %s", mail_domain)
 
     # 3) run each service  ---------------------------------------
-    '''
+    
     # --- Wappalyzer Web App Fingerprinting ---------------------------------------------
     results = wappalyzer.analyze(
         url=website_url,
@@ -176,7 +176,7 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
                 json.dumps(certificate_info["certificate_json"], indent=2)
             )
     
-    '''
+    
     # --- Subdomains retrieval -----------------------------------
     subdomains = set()
 
@@ -241,23 +241,24 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
         # --- Shodan host lookup -------------------------------------
         shodan = clients.get("shodan")
         if shodan:
+            ips_info = dict()
             for ip in ips:
-                try:
+                try: 
                     result = shodan.host(ip)  
                     if result != {}:      # raw dict
                         groomed = grooming.get_groomed_shodan_info(result)
-                        (ws.file("shodan", f"{ip}.json")).write_text(
-                            json.dumps(groomed, indent=2)
-                        )
+                        ips_info[ip] = groomed
                 except Exception as e:
                     log.error("Shodan failed for %s: %s", ip, e, exc_info=True)
-
-    
+            shodan_path = ws.file("shodan", "shodan_info.json")
+            if ips_info:
+                shodan_path.write_text(json.dumps(ips_info, indent=2))
+                
     # --- IntelX Leaked Credentials Retrieval ---------------------------------------
     intelx = clients.get("intelx")
     if intelx:
         intelligent_search_id = intelx.intelligent_search(
-            term=mail_domain, media=0, maxresults=5000
+            term=mail_domain, media=0
         )
 
         if intelligent_search_id:
@@ -269,7 +270,7 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
                     # Writes to disk the search results (as a CSV or ZIP file)
                     filename = f"intelx_search_{intelligent_search_id}.{filetype}"
 
-                    credentials_path = ws.file("intelx", f"leaked_credentials_{time.time()}.json")
+                    credentials_path = ws.file("intelx", f"leaked_credentials.json")
                     intelx_breach_files = ws.file("intelx", "breach_files")
                     intelx_breach_files.mkdir(parents=True, exist_ok=True)
 
@@ -293,7 +294,7 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
                         log.info("Leaked credentials saved to %s", ws.file("intelx", "leaked_credentials.json"))
 
                         # Delete the breach files directory after processing (has files in it)
-                        # shutil.rmtree(intelx_breach_files)
+                        shutil.rmtree(intelx_breach_files)
                 else:
                     log.error("Intelligent search export result is empty")
     
@@ -316,9 +317,7 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
             ws.file("haveibeenpwned", "breaches.json").write_text(
                 json.dumps(emails_breaches, indent=2)
             )
-    
-    # keep adding blocks for other services …
-     
+         
     # 4) post-processing / diffing / report generation ----------
     # (left as TODO – you will call your processing & report modules here)
     
