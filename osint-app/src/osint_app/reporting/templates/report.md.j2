@@ -10,8 +10,30 @@ _Run: {{ run_datetime }}_
 # Investigation
 In this chapter, we delve into the information-gathering process conducted on the web infrastructure of {{web_domain}}. It's important to note that while a multitude of data sources were queried, only those providing relevant information with potential use for malicious actors are highlighted here.
 ## Domain
+### DNS Records
+### DMARC
+### SPF
+### SSL Check
+### Technology Stack
+| Name 	| Version 	| Category 	|
+|------	|---------	|----------	|
+### Header Analysis
 
 ## Subdomains
+Here is a list of subdomains discovered during the investigation. These subdomains may provide additional attack vectors or insights into the web infrastructure of {{web_domain}}.
+{% if subdomains_ips %}
+    {% for subdomain, ips in subdomains_ips.items() %}
+        - **{{ subdomain }}**
+        {% if ips|length == 0 %}
+            _No IPs found for this subdomain._
+        {% endif %}
+        {% for ip in ips %}
+            - {{ ip }}
+        {% endfor %}
+    {% endfor %}
+{% else %}
+    _No subdomains found._
+{% endif %}
 
 ## Hosts
 ## Provider Hosting
@@ -19,44 +41,3 @@ In this chapter, we delve into the information-gathering process conducted on th
 ## Leaked Company Credentials
 ## Data Breach Details
 # Conclusion
-
-
-
-
-
-
-
-
-
-
-
-
-
-## 1. Technology stack (Wappalyzer)
-{% if wappalyzer -%}
-| App | Version |
-|-----|---------|
-{% for app, vers in wappalyzer['technologies'].items() %}
-| {{ app }} | {{ vers|join(', ') }} |
-{% endfor %}
-{% else %}
-_No data collected._
-{% endif %}
-
-## 2. DNS & Sub-domains
-{% if dnsdumpster %}
-Total A records: {{ dnsdumpster['total_a_recs'] }}
-{% else %}
-_No data collected._
-{% endif %}
-
-## 3. Vulnerabilities (Shodan)
-{% if shodan.vulns %}
-{% for v in shodan.vulns %}
-* **{{ v.cve_id }}** (CVSS {{ v.cvss }}) – {{ v.summary }}
-{% endfor %}
-{% else %}
-_No CVEs found._
-{% endif %}
-
-… continue with the other sections …

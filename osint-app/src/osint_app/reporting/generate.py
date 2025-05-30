@@ -18,7 +18,8 @@ def write_report_json(ws: Path) -> Path:
 
 def generate_report(ws: Path) -> Path:
     json_path = write_report_json(ws)
-    #markdown = TEMPLATE.render(**json.loads(json_path.read_text()))
+    markdown = TEMPLATE.render(**json.loads(json_path.read_text()))
+    print(f"Generated report markdown for {ws.name}:\n{markdown}")  # Print first 100 chars for brevity
     pdf_path = ws / "report.pdf"
     #markdown_to_pdf(markdown, pdf_path)
     return pdf_path
