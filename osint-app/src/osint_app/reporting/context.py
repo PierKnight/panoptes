@@ -3,6 +3,7 @@ import json
 import subprocess
 from datetime import datetime
 from importlib import metadata
+from ..utils.misc import get_field_name_from_service_dir_name, image_to_base64
 
 PKG_VERSION = metadata.version("osint_app")
 
@@ -25,37 +26,37 @@ def build(workspace: Path) -> dict:
         "compromised_hosts": {},    # AbuseIPDB
         "leaked_credentials": {},   # IntelX
         "data_breaches": {},        # HaveIBeenPwned
+        "images": {},               # Images from service directories
     }
 
     for service_dir in workspace.iterdir():
         if service_dir.is_dir():
+            field_name = get_field_name_from_service_dir_name(service_dir.name)
+    
+            # Get all JSON files in the service directory
             for file in service_dir.glob("*.json"):
                 if file:
-                    if service_dir.name == "abuseipdb":
-                        field_name = "compromised_hosts"
-                    elif service_dir.name == "dnsdumpster":
-                        field_name = "dns_records"
-                    elif service_dir.name == "haveibeenpwned":
-                        field_name = "data_breaches"
-                    elif service_dir.name == "httpsecurityheaders":
-                        field_name = "header_analysis"
-                    elif service_dir.name == "intelx":
-                        field_name = "leaked_credentials"
-                    elif service_dir.name == "mxtoolbox":
-                        if "dmarc" in file.name:
-                            field_name = "dmarc"
-                        elif "spf" in file.name:
-                            field_name = "spf"
-                        else:
-                            continue
-                    elif service_dir.name == "shodan":
-                        field_name = "hosts"
-                    elif service_dir.name == "sslshopper":
-                        field_name = "ssl_check"
-                    elif service_dir.name == "subdomains":
-                        field_name = "subdomains_ips"
-                    elif service_dir.name == "wappalyzer":
-                        field_name = "web_technologies"
+                    if field_name == "mxtoolbox":
+                        # Special case for MXToolbox, which has multiple fields
+                        if file.name == "dmarc.json":
+                            ctx["dmarc"] = json.loads(file.read_text())
+                        elif file.name == "spf.json":
+                            ctx["spf"] = json.loads(file.read_text())
+                        continue
 
                 ctx[field_name] = json.loads(file.read_text())
+            
+            # Handle specific cases for images
+            if service_dir.name == "mxtoolbox":
+                for image_file in service_dir.glob("*.png"):
+                    if image_file.name.startswith("dmarc"):
+                        image_field_name = "dmarc"
+                    elif image_file.name.startswith("spf"):
+                        image_field_name = "spf"
+                    #ctx["images"][image_field_name] = image_file.absolute().as_posix()
+                    ctx["images"][image_field_name] = image_to_base64(str(image_file))
+            elif service_dir.name == "sslshopper":
+                for image_file in service_dir.glob("*.png"):
+                    #ctx["images"]["ssl_check"] = image_file.absolute().as_posix()
+                    ctx["images"]["ssl_check"] = image_to_base64(str(image_file))
     return ctx

@@ -18,6 +18,78 @@ import json
 
 log = logging.get(__name__)
 
+import base64
+from pathlib import Path
+
+
+@typechecked
+def image_to_base64(image_path: str) -> str:
+    """
+    Convert an image file to a base64 encoded data URI.
+    Args:
+        image_path (str): The path to the image file.
+    Returns:
+        str: A base64 encoded data URI representing the image.
+    Raises:
+        FileNotFoundError: If the image file does not exist.
+        ValueError: If the file is not a valid image type.
+    """
+
+    with open(image_path, "rb") as image_file:
+        # Convert the image file to base64
+        encoded = base64.b64encode(image_file.read()).decode('utf-8')
+    
+    # Determine the MIME type based on the file extension
+    suffix = Path(image_path).suffix.lower()
+    mime_types = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.svg': 'image/svg+xml'
+    }
+    mime_type = mime_types.get(suffix, 'image/png')
+    
+    # Return the base64 encoded data URI
+    return f"data:{mime_type};base64,{encoded}"
+
+
+@typechecked
+def get_field_name_from_service_dir_name(service_dir_name: str) -> str:
+    """
+    Get the field name for a given service directory.
+    Args:
+        service_dir_name (str): The name of the service directory (e.g., "abuseipdb", "dnsdumpster").
+    Returns:
+        str: The field name corresponding to the service directory.
+    """
+    service_dir_name = service_dir_name.lower()
+    if service_dir_name == "abuseipdb":
+        field_name = "compromised_hosts"
+    elif service_dir_name == "dnsdumpster":
+        field_name = "dns_records"
+    elif service_dir_name == "haveibeenpwned":
+        field_name = "data_breaches"
+    elif service_dir_name == "httpsecurityheaders":
+        field_name = "header_analysis"
+    elif service_dir_name == "intelx":
+        field_name = "leaked_credentials"
+    elif service_dir_name == "mxtoolbox":
+        return "mxtoolbox"  # Special case, as it can contain multiple fields
+    elif service_dir_name == "shodan":
+        field_name = "hosts"
+    elif service_dir_name == "sslshopper":
+        field_name = "ssl_check"
+    elif service_dir_name == "subdomains":
+        field_name = "subdomains_ips"
+    elif service_dir_name == "wappalyzer":
+        field_name = "web_technologies"
+    else:
+        raise ValueError(f"Unknown service directory: {service_dir}")
+    return field_name
+
+
 @typechecked
 def get_website_url(domain: str) -> str:
     """

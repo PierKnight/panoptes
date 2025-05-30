@@ -21,6 +21,8 @@ def get_screenshot_and_element_by_class_name(driver: webdriver.Chrome, class_nam
         if (ele) { ele.parentNode.removeChild(ele); }
         var ele = document.getElementById('promo-outer');
         if (ele) { ele.parentNode.removeChild(ele); }
+        var ele = document.getElementById('ctl00_divFooter');
+        if (ele) { ele.parentNode.removeChild(ele); }
     """)
 
     # Wait for the page to load completely
