@@ -8,16 +8,53 @@ _Run: {{ run_datetime }}_
 # Process
 # Retrieved Info Summary
 # Investigation
-In this chapter, we delve into the information-gathering process conducted on the web infrastructure of {{web_domain}}. It's important to note that while a multitude of data sources were queried, only those providing relevant information with potential use for malicious actors are highlighted here.
+In this chapter, we delve into the information-gathering process conducted on the web infrastructure of {% if web_domain %}{{web_domain}}{% else %}{{domain}}{% endif %}. It's important to note that while a multitude of data sources were queried, only those providing relevant information with potential use for malicious actors are highlighted here.
 ## Domain
 ### DNS Records
+Another important source of information for domain analysis is represented by **DNS records**.  
+These records provide essential technical details, such as the **IP addresses** associated with the domain (**A** and **AAAA** records), **mail servers** (**MX**), **name servers** (**NS**), and other key configurations like **CNAME** and **TXT records**.  
+By analyzing **DNS records**, it is possible to gain an in-depth understanding of the domain’s configuration and its underlying **technical infrastructure**, helping to identify potential **points of interest** or **vulnerabilities**.
+
+{% for record_type, content in dns_records.items() %}
+#### {{ record_type.upper() }} Records
+{% if content|length == 0 %}
+No {{ record_type }} records found for **{{ domain }}**.
+{% else %}
+{% if record_type == 'txt' %}
+{% for txt_record in content %}
+`{{ txt_record }}`<br><br>
+{% endfor %}
+{% else %}
+
+<table class="record-table">
+    {% if loop.first %}
+    <tr>  
+        <th>Host</th>
+        <th>IP Address</th>
+        <th>ASN</th>
+        <th>ASN Name</th> 
+    </tr>
+    {% endif %}
+    {% for record in content %}
+    <tr>
+        <td>{{ record.host }}</td>
+        <td>{{ record.ips[0].ip if record.ips else 'N/A' }}</td>
+        <td>{{ record.ips[0].asn if record.ips else 'N/A' }}</td>
+        <td>{{ record.ips[0].asn_name if record.ips else 'N/A' }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+{% endif %}
+{% endfor %}
 ### SPF & DMARC
 Another useful check is the analysis of **DMARC** and **SPF** records. These email authentication mechanisms are **essential** for protecting a domain from **abuse** and **phishing** attacks. DMARC (*Domain-based Message Authentication, Reporting, and Conformance*) allows domain owners to specify how emails *failing authentication checks* should be handled, and provides detailed reports on unauthorized use attempts. On the other hand, SPF (Sender Policy Framework) defines *which servers are authorized to send emails* on behalf of the domain.
 #### DMARC
-![DMARC Info]({{ images.dmarc }})
+<img src="{{ images.dmarc }}" alt="DMARC Info" style="max-width: 80%; height: auto;">
+
 
 #### SPF
-![SPF Info]({{ images.spf }})
+<img src="{{ images.spf }}" alt="SPF Info" style="max-width: 80%; height: auto;">
 
 ### SSL Check
 SSL/TLS certificates are another crucial component in assessing a domain's security and reliability. They ensure that communications between the website and its users are **encrypted** and **secure**. Analyzing these certificates allows verification of their **validity**, **expiration date**, and the issuing **certificate authority**. Proper configuration can prevent **man-in-the-middle attacks** and ensure **sensitive information** is protected during transit.
@@ -39,7 +76,7 @@ The analysis of SSL/TLS certificates includes:
 **Issuer**: {{ ssl_check["Issuer"] }}<br>
 
 #### Certificate Chain
-![SSL Info]({{ images.ssl_check }})
+<img src="{{ images.ssl_check }}" alt="SSL Chain" style="max-width: 80%; height: auto;">
 ### Technology Stack
 | Name 	| Version 	| Category 	|
 |------	|---------	|----------	|
@@ -100,8 +137,10 @@ No data breaches found for **{{email}}** from public sources.
 {% endif %}
 #### Data Leaks
 {% for leak in leaks %}
-- `{{ leak }}`
+<code class="data-leak">{{ leak|escape_md }}</code><br/>
 {% endfor %}
+
+---
 {% endfor %}
 {% else %}
 No compromised credentials were found for **{{domain}}**.

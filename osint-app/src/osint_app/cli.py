@@ -10,6 +10,7 @@ def cli(verbose):
     logging_level = "DEBUG" if verbose else "INFO"
     utils.logging.init_logger(logging_level)
 
+
 @cli.command()
 @rich_click.argument("domain")
 @rich_click.option("--mail-domain")
@@ -18,12 +19,15 @@ def collect(domain, mail_domain):
     cfg = config.load()
     workflow.run(cfg, domain, mail_domain)
 
+
 @cli.command()
 @rich_click.argument("workspace", type=rich_click.Path(exists=True, file_okay=False))
 def report(workspace):
     """Generate report.json (+ prev) and a PDF for WORKSPACE."""
-    pdf = reporting.generate.generate_report(Path(workspace))
+    md, pdf = reporting.generate.generate_report(Path(workspace))
+    rich_click.echo(f"Markdown written to {md}")
     rich_click.echo(f"PDF written to {pdf}")
+    
 
 if __name__ == "__main__":
     cli()
