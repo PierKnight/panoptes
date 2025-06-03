@@ -1,59 +1,11 @@
-import pypandoc
 from pathlib import Path
 from osint_app.utils import logging
+import markdown2
+from weasyprint import HTML, CSS
 
 log = logging.get(__name__)
 
-def markdown_to_pdf(
-        markdown_content: str,
-        output_path: Path,
-        *,
-        preserve_headers=True,
-        include_toc=False
-       ):
-        """
-        Convert markdown content to PDF
-        
-        Args:
-            markdown_content: Rendered markdown content
-            output_path: Path to save the PDF file
-            preserve_headers: Keep header hierarchy (up to ####)
-            include_toc: Include table of contents
-        """
-        
-        # Pandoc extra arguments for better formatting
-        extra_args = [
-            '--pdf-engine=xelatex',  # Better Unicode support
-            '--variable', 'geometry:margin=1in',  # Page margins
-            '--variable', 'fontsize=11pt',  # Font size
-            '--variable', 'linestretch=1.2',  # Line spacing
-        ]
-        
-        # Add table of contents if requested
-        if include_toc:
-            extra_args.extend(['--toc', '--toc-depth=4'])
-        
-        # Preserve header levels up to #### (level 4)
-        if preserve_headers:
-            extra_args.extend(['--shift-heading-level-by=0'])
-        
-        try:
-            pypandoc.convert_text(
-                markdown_content,
-                'pdf',
-                format='md',
-                outputfile=str(output_path),
-                extra_args=extra_args
-            )
-            log.info(f"✅ PDF created successfully: {output_path}")
-            return str(output_path)
-            
-        except Exception as e:
-            log.error(f"❌ Error converting to PDF: {e}")
-            raise
 
-
-# Alternative: HTML to PDF approach (no LaTeX required)
 def markdown_to_pdf_via_html(
         markdown_content: str,
         output_path: Path,
@@ -65,8 +17,7 @@ def markdown_to_pdf_via_html(
         Requires: pip install weasyprint markdown2
         """
         try:
-            import markdown2
-            from weasyprint import HTML, CSS
+            
             
             # Convert markdown to HTML with extensions
             extras = [

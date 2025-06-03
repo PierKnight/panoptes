@@ -264,9 +264,11 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
         if intelligent_search_id:
             filetype = "zip"
             print(f"Intelligent search ID: {intelligent_search_id}")
-            content = intelx.intelligent_search_export(filetype=filetype, search_id=intelligent_search_id, limit=5000)
+            
+            content = intelx.intelligent_search_export(filetype=filetype, search_id=intelligent_search_id, limit=1000)
             if content:
-                if content is not None:
+                log.info("Size of the credentials content: %d bytes", len(content))
+                if content is not {}:
                     # Writes to disk the search results (as a CSV or ZIP file)
                     filename = f"intelx_search_{intelligent_search_id}.{filetype}"
 

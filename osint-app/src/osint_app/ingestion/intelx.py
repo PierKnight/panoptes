@@ -106,6 +106,7 @@ class IntelX(BaseHTTPClient):
 
         try:
             resp = self._get(url, params=params, timeout=600)
+            log.info("intelx /intelligent/search/export: %s", resp.status_code)
             if resp.status_code == 204:
                 log.error("intelx /intelligent/search/export: no content for search with ID %s", search_id)
             return resp.content

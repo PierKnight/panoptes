@@ -1,5 +1,4 @@
 import requests
-import backoff
 
 from osint_app.utils import logging
 log = logging.get(__name__)

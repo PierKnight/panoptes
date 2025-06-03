@@ -2,7 +2,7 @@ from pathlib import Path
 from .context import build
 from jinja2 import Environment, FileSystemLoader
 import json
-from .pdf import markdown_to_pdf, markdown_to_pdf_via_html    # your pandoc/weasyprint helper
+from .pdf import markdown_to_pdf_via_html
 
 
 def escape_markdown_chars(text: str) -> str:
