@@ -2,7 +2,7 @@ from pathlib import Path
 from .context import build
 from jinja2 import Environment, FileSystemLoader
 import json
-from .pdf import markdown_to_pdf_via_html
+from .pdf import html_to_pdf, markdown_to_pdf_via_html
 
 
 def escape_markdown_chars(text: str) -> str:
@@ -41,15 +41,20 @@ def escape_markdown_chars(text: str) -> str:
     
     return result
 
-TEMPLATE_ENV = Environment(
+OLD_TEMPLATE_ENV = Environment(
     loader=FileSystemLoader(Path(__file__).parent/"templates"),
     trim_blocks=True,     # strip the first newline after a block
     lstrip_blocks=True    # strip spaces and tabs before a block
 )
 
-TEMPLATE_ENV.filters["escape_md"] = escape_markdown_chars
+TEMPLATE_ENV = Environment(
+    loader=FileSystemLoader(Path(__file__).parent/"templates"),
+    autoescape=True,  # automatically escape HTML
+)
 
-TEMPLATE = TEMPLATE_ENV.get_template("report.md.j2")
+#TEMPLATE_ENV.filters["escape_md"] = escape_markdown_chars
+
+TEMPLATE = TEMPLATE_ENV.get_template("report.html.j2")
 
 def write_report_json(ws: Path) -> Path:
     new_data = build(ws)
@@ -64,18 +69,24 @@ def generate_report(ws: Path) -> Path:
     json_path = write_report_json(ws)
     TEMPLATE_ENV.globals["ws"] = ws  # make 'ws' available in the template
     
-    markdown = TEMPLATE.render(**json.loads(json_path.read_text()))
+    # markdown = TEMPLATE.render(**json.loads(json_path.read_text()))
+    html = TEMPLATE.render(**json.loads(json_path.read_text()))
     
     ### Write markdown to file
     ws.mkdir(parents=True, exist_ok=True)
-    markdown_path = ws / "osint-report.md"
-    markdown_path.write_text(markdown)
+    html_path = ws / "osint-report.md"
+    html_path.write_text(html)
 
     pdf_path = ws / "osint-report.pdf"
-    markdown_path = ws / "osint-report.md"
+    html_path = ws / "osint-report.md"
+    '''
     markdown_to_pdf_via_html(
-        markdown_content=markdown,
+        markdown_content=html,
         output_path=pdf_path,
-        include_toc=True
-        )
-    return markdown_path, pdf_path
+    )
+    '''
+    html_to_pdf(
+        html_content=html,
+        output_path=pdf_path,
+       )
+    return html_path, pdf_path

@@ -94,19 +94,19 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
     # 3) run each service  ---------------------------------------
     
     # --- Wappalyzer Web App Fingerprinting ---------------------------------------------
-    results = wappalyzer.analyze(
+    raw_wappalyzer_data = wappalyzer.analyze(
         url=website_url,
         scan_type='balanced',  # 'fast', 'balanced', or 'full'
         threads=8,
         cookie='sessionid=abc123'
     )
+    results = grooming.get_groomed_wappalyzer_info(raw_wappalyzer_data)
 
     ws.file("wappalyzer", "results.json").write_text(
         json.dumps(results, indent=2)
     )
     log.info("Wappalyzer results saved to %s", ws.file("wappalyzer", "results.json"))
     
-
     # --- MXToolbox SPF & DMARC records lookup ---------------------------------
     mxtoolbox = clients.get("mxtoolbox")
     if mxtoolbox:
@@ -319,7 +319,7 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
             ws.file("haveibeenpwned", "breaches.json").write_text(
                 json.dumps(emails_breaches, indent=2)
             )
-         
+    
     # 4) post-processing / diffing / report generation ----------
     # (left as TODO – you will call your processing & report modules here)
     

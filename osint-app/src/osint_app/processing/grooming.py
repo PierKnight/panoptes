@@ -166,3 +166,38 @@ def get_groomed_mxtoolbox_lookup(info: dict) -> dict:
         # Get Name and Info from each passed entry
         groomed_info["Passed"] = [{"Name": entry.get("Name"), "Info": entry.get("Info")} for entry in info["Passed"]]
     return groomed_info
+
+
+@typechecked
+def get_groomed_wappalyzer_info(raw_data: dict) -> dict:
+    """
+    Grooms the raw Wappalyzer technology information by grouping technologies by their categories
+    and formatting them as "tech_name/version". If no version is available, it only includes the tech name.
+    Args:
+        raw_data (dict): The raw Wappalyzer technology information.
+    Returns:
+        dict: A dictionary containing groomed Wappalyzer technology information.
+    """
+    groomed_info = dict()
+    
+    # Get the URL and technologies
+    for domain in raw_data.keys():
+        for key, value in raw_data[domain].items():
+            categories = value.get("categories", [])
+            category = ""
+            if len(categories) > 0:
+                category = categories[0]
+                if category != "":
+                    if category not in groomed_info:
+                        groomed_info[category] = []
+            
+                    # <tech_name>/<version>
+                    tech_name = key
+                    version = value.get("version", "")
+                    to_add = tech_name
+                    if version != "":
+                        to_add += f"/{version}"
+                    
+                    groomed_info[category].append(to_add)
+    
+    return groomed_info

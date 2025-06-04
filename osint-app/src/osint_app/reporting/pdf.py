@@ -1,16 +1,13 @@
 from pathlib import Path
 from osint_app.utils import logging
-import markdown2
 from weasyprint import HTML, CSS
+import markdown2
 
 log = logging.get(__name__)
-
 
 def markdown_to_pdf_via_html(
         markdown_content: str,
         output_path: Path,
-        *,
-        include_toc=False
        ):
         """
         Convert markdown to PDF via HTML (no LaTeX dependencies)
@@ -26,9 +23,7 @@ def markdown_to_pdf_via_html(
                 'header-ids',
             ]
             
-            if include_toc:
-                extras.append('toc')
-            
+
             html_content = markdown2.markdown(markdown_content, extras=extras)
             
             # CSS for better formatting
@@ -169,3 +164,42 @@ def markdown_to_pdf_via_html(
         except Exception as e:
             log.error(f"❌ Error converting via HTML: {e}")
             raise
+    
+
+def html_to_pdf(
+    html_content: str,
+    output_path: Path,
+):
+    """
+    Convert HTML to PDF via WeasyPrint (no LaTeX or Markdown dependencies).
+    Expects input HTML to be valid and complete (i.e., includes <html> and <body> tags).
+
+    Args:
+        html_content (str): The HTML content to convert to PDF.
+        output_path (Path): The path where the generated PDF will be saved.
+    Returns:
+        str: The path to the generated PDF file.
+    Raises:
+        FileNotFoundError: If the CSS file is not found.
+    """
+    try:
+        # css_content is in ./css/style.css
+        css_path = Path(__file__).parent / "css" / "style.css"
+        if not css_path.exists():
+            log.error(f"CSS file not found: {css_path}")
+            raise FileNotFoundError(f"CSS file not found: {css_path}")
+        css_content = css_path.read_text(encoding="utf-8")
+
+        # We expect html_content to be a fully rendered HTML document.
+        HTML(string=html_content).write_pdf(
+            str(output_path),
+            stylesheets=[CSS(string=css_content)]
+        )
+        log.info(f"✅ PDF created via HTML template: {output_path}")
+        return str(output_path)
+    except ImportError:
+        log.error("WeasyPrint not installed. Install with: pip install weasyprint")
+        raise
+    except Exception as e:
+        log.error(f"❌ Error converting HTML to PDF: {e}")
+        raise

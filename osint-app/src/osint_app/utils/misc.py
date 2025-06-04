@@ -84,9 +84,9 @@ def get_field_name_from_service_dir_name(service_dir_name: str) -> str:
     elif service_dir_name == "subdomains":
         field_name = "subdomains_ips"
     elif service_dir_name == "wappalyzer":
-        field_name = "web_technologies"
+        field_name = "tech_stack"
     else:
-        raise ValueError(f"Unknown service directory: {service_dir}")
+        raise ValueError(f"Unknown service directory: {service_dir_name}")
     return field_name
 
 

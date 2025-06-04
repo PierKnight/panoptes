@@ -24,8 +24,8 @@ def collect(domain, mail_domain):
 @rich_click.argument("workspace", type=rich_click.Path(exists=True, file_okay=False))
 def report(workspace):
     """Generate report.json (+ prev) and a PDF for WORKSPACE."""
-    md, pdf = reporting.generate.generate_report(Path(workspace))
-    rich_click.echo(f"Markdown written to {md}")
+    html, pdf = reporting.generate.generate_report(Path(workspace))
+    rich_click.echo(f"HTML written to {html}")
     rich_click.echo(f"PDF written to {pdf}")
     
 
