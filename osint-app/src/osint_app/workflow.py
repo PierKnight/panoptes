@@ -263,7 +263,10 @@ def run(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
 
         if intelligent_search_id:
             filetype = "zip"
-            print(f"Intelligent search ID: {intelligent_search_id}")
+            log.info(f"Intelligent search ID: {intelligent_search_id}")
+            
+            log.info("10 seconds delay to allow the search to complete...")
+            time.sleep(10)
             
             content = intelx.intelligent_search_export(filetype=filetype, search_id=intelligent_search_id, limit=1000)
             if content:

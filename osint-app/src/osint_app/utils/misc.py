@@ -66,7 +66,7 @@ def get_field_name_from_service_dir_name(service_dir_name: str) -> str:
     """
     service_dir_name = service_dir_name.lower()
     if service_dir_name == "abuseipdb":
-        field_name = "compromised_hosts"
+        field_name = "compromised_ips"
     elif service_dir_name == "dnsdumpster":
         field_name = "dns_records"
     elif service_dir_name == "haveibeenpwned":

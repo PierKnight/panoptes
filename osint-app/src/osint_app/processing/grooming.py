@@ -32,8 +32,10 @@ def get_groomed_shodan_info(raw: dict):
     """
     groomed_info = dict()
     # Exposed ports
-    groomed_info["asn"] = raw.get("asn", "")
-    groomed_info["isp"] = raw.get("isp", "")
+    general_info_as_is = ["asn", "isp", "city", "country_name"]
+    for field in general_info_as_is:
+        if field in raw:
+            groomed_info[field] = raw[field]
 
     old_data = raw.get("data", [])
     new_data = list()

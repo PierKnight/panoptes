@@ -64,7 +64,7 @@ pre {
     border-left: 5px solid #e91e63;
     padding: 5px;
     margin: 20px 5;
-    font-size: 8pt;
+    font-size: 10pt;
 }
 .record-table {
     border-collapse: collapse;
@@ -115,4 +115,81 @@ pre {
 
 .exposed-service-row {
     background-color: lightgray;
+}
+
+.vulnerability-info {
+    background-color: #ddd;
+}
+
+.vulnerability-score {
+    width: 10%;
+    text-align: center;
+}
+
+.vulnerability-score.critical {
+    background-color: #c0392b;
+    color: #fff;
+}
+.vulnerability-score.high {
+    background-color: #e67e22; 
+    color: #fff;
+}
+.vulnerability-score.medium {
+    background-color: #f7ca18; 
+    color: #222;
+}
+.vulnerability-score.low {
+    background-color: #27ae60; 
+    color: #fff;
+}
+
+.asn-info {
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+/* Screenshot */
+.screenshot {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Summary Table */
+.summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.summary-risk {
+    font-weight: bold;
+    text-align: center;
+    color: white
+}
+
+.summary-risk.critical {
+    background-color: darkred;
+}
+
+.summary-risk.high {
+    background-color: red;
+}
+
+.summary-risk.medium {
+    background-color: orange;
+}
+
+.summary-risk.low {
+    background-color: green;
+}
+
+.summary-risk.info {
+    background-color: blue;
 }

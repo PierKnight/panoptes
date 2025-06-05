@@ -24,7 +24,7 @@ def build(workspace: Path) -> dict:
         "subdomains_ips": {},       # C99, VirusTotal, IntelX Phonebook (merged)
         "hosts": {},                # Shodan
         "providers": {},            # TODO: Check if we already have this
-        "compromised_hosts": {},    # AbuseIPDB
+        "compromised_ips": {},    # AbuseIPDB
         "leaked_credentials": {},   # IntelX
         "data_breaches": {},        # HaveIBeenPwned
         "images": {},               # Images from service directories
