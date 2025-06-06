@@ -11,7 +11,7 @@ def build(workspace: Path) -> dict:
     # Note: if a key is changed here, it must also be changed in the get_field_name_from_service_dir_name function
     ctx = {
         "domain": workspace.name,
-        "run_datetime": datetime.now().isoformat(timespec="seconds") + "Z",
+        "run_datetime": str(datetime.now()),
         "git_sha": subprocess.check_output(
             ["git", "rev-parse", "--short", "HEAD"], text=True
         ).strip(),
@@ -20,11 +20,10 @@ def build(workspace: Path) -> dict:
         "spf": {},                  # MXToolbox
         "dns_records": {},          # DNSDumpster
         "ssl_check": {},            # SSLShopper
-        "tech_stack": {},     # Wappalyzer
+        "tech_stack": {},           # Wappalyzer
         "subdomains_ips": {},       # C99, VirusTotal, IntelX Phonebook (merged)
         "hosts": {},                # Shodan
-        "providers": {},            # TODO: Check if we already have this
-        "compromised_ips": {},    # AbuseIPDB
+        "compromised_ips": {},      # AbuseIPDB
         "leaked_credentials": {},   # IntelX
         "data_breaches": {},        # HaveIBeenPwned
         "images": {},               # Images from service directories

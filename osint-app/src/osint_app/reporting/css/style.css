@@ -1,12 +1,93 @@
 @page {
     margin: 1in;
-    size: letter;
+    size: A4;
+
+    @top-center {
+        content: element(header);
+    }
+    
+    @bottom-left {
+        content: element(footer-left);
+    }
+
+    @bottom-right {
+        content: element(footer-right);
+    }
 }
+
+@page:first {
+    @top-center {
+        content: none;
+    }
+    
+    @bottom-left {
+        content: none;
+    }
+
+    @bottom-right {
+        content: none;
+    }
+
+    padding: 0;
+    margin: 0;
+}
+
+.header {
+    position: running(header);
+    text-align: center;
+}
+
+.header img {
+    /* Let's just hope that the report will only be printed on A4 paper */
+    width: 180mm;
+}
+
+.footer-left {
+    position: running(footer-left);
+    font-family: Arial, sans-serif;
+    font-size: 10pt;
+}
+
+.footer-right {
+    position: running(footer-right);
+    font-family: Arial, sans-serif;
+    font-size: 10pt;
+}
+
+.title-page {
+    position: relative;
+    page-break-after: always;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.title-page .title-image {
+    /* Never ever in your entire life ask me why I had to put the padding and that height */
+    width: 210mm;
+    height: 297mm; 
+    object-fit: cover; /* Fill the page, crop if necessary */
+    display: block;
+}
+
+/* Page counter */
+.page-counter:after {
+    content: counter(page);
+}
+
+.total-pages:after {
+    content: counter(pages);
+}
+
 body { 
     font-family: 'Times New Roman', serif; 
     line-height: 1.6; 
     font-size: 11pt;
     color: #333;
+    margin: 0;
+    padding: 0;
 }
 h1 { 
     color: #2c3e50; 

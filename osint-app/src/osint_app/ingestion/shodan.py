@@ -12,7 +12,7 @@ from typeguard import typechecked
 @typechecked
 class Shodan:
     """
-    A wclass to interact with the Shodan API for OSINT purposes.
+    A wclass to interact with the Shodan API.
     
     Attributes:
         api_key (str): The API key for accessing Shodan.

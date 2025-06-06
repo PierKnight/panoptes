@@ -3,6 +3,7 @@ from .context import build
 from jinja2 import Environment, FileSystemLoader
 import json
 from .pdf import html_to_pdf, markdown_to_pdf_via_html
+import datetime
 
 
 def escape_markdown_chars(text: str) -> str:
@@ -74,11 +75,11 @@ def generate_report(ws: Path) -> Path:
     
     ### Write markdown to file
     ws.mkdir(parents=True, exist_ok=True)
-    html_path = ws / "osint-report.md"
+    html_path = ws / "osint-report.html"
     html_path.write_text(html)
 
     pdf_path = ws / "osint-report.pdf"
-    html_path = ws / "osint-report.md"
+    
     '''
     markdown_to_pdf_via_html(
         markdown_content=html,
