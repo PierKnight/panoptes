@@ -1,0 +1,294 @@
+@page {
+    margin: 1in;
+    size: A4;
+
+    @top-center {
+        content: element(header);
+    }
+    
+    @bottom-left {
+        content: element(footer-left);
+    }
+
+    @bottom-right {
+        content: element(footer-right);
+    }
+}
+
+@page:first {
+    @top-center {
+        content: none;
+    }
+    
+    @bottom-left {
+        content: none;
+    }
+
+    @bottom-right {
+        content: none;
+    }
+
+    padding: 0;
+    margin: 0;
+}
+
+.header {
+    position: running(header);
+    text-align: center;
+}
+
+.header img {
+    /* Let's just hope that the report will only be printed on A4 paper */
+    width: 180mm;
+}
+
+.footer-left {
+    position: running(footer-left);
+    font-family: Arial, sans-serif;
+    font-size: 10pt;
+}
+
+.footer-right {
+    position: running(footer-right);
+    font-family: Arial, sans-serif;
+    font-size: 10pt;
+}
+
+.title-page {
+    position: relative;
+    page-break-after: always;
+    margin: 0;
+    padding: 0;
+    width: 210mm;
+    height: 297mm;
+}
+
+.title-page .title-image {
+    width: 210mm;
+    height: 297mm; 
+    object-fit: cover;
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.title-overlay {
+    position: absolute;
+    /* Adjust these values to position your text where you want it */
+    top: 60%;
+    left: 10%; 
+    transform: translate(0, -50%); /* Center the text on the coordinates */
+    z-index: 10; /* Ensure text appears above the image */
+}
+
+.client-domain {
+    color: #0b4697; /* Or any color that contrasts with your image */
+    font-size: 32pt; /* Adjust size as needed */
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: bold;
+    /* You can add more styling here */
+}
+
+
+
+/* Page counter */
+.page-counter:after {
+    content: counter(page);
+}
+
+.total-pages:after {
+    content: counter(pages);
+}
+
+body { 
+    font-family: 'Times New Roman', serif; 
+    line-height: 1.6; 
+    font-size: 11pt;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+h1 { 
+    color: #2c3e50; 
+    border-bottom: 2px solid #3498db; 
+    padding-bottom: 5px;
+    page-break-after: avoid;
+}
+h2 { 
+    color: #34495e; 
+    border-bottom: 1px solid #bdc3c7; 
+    padding-bottom: 3px;
+    page-break-after: avoid;
+}
+h3 { 
+    color: #34495e; 
+    page-break-after: avoid;
+}
+h4 { 
+    color: #7f8c8d; 
+    page-break-after: avoid;
+}
+table { 
+    border-collapse: collapse; 
+    width: 100%; 
+    margin: 20px 0;
+    page-break-inside: avoid;
+}
+th, td { 
+    border: 1px solid #ddd; 
+    padding: 8px; 
+    text-align: left; 
+}
+th { 
+    background-color: #f8f9fa; 
+    font-weight: bold;
+}
+img { 
+    max-width: 100%; 
+    height: auto; 
+    page-break-inside: avoid;
+}
+pre, code {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-family: 'Courier New', monospace;
+}
+pre {
+    padding: 10px;
+}
+.data-leak {
+    background-color: #fce4ec;
+    border-left: 5px solid #e91e63;
+    padding: 5px;
+    font-size: 10pt;
+}
+.record-table {
+    border-collapse: collapse;
+}
+.record-table th,
+.record-table td {
+    text-align: left;
+    padding: 8px;
+    border: 1px solid #ddd;
+    word-wrap: break-word;
+}
+.record-table th:nth-child(1),
+.record-table td:nth-child(1) {
+    width: 30%;
+}
+.record-table th:nth-child(2),
+.record-table td:nth-child(2) {
+    width: 20%;
+}
+.record-table th:nth-child(3),
+.record-table td:nth-child(3) {
+    width: 10%;
+}
+.record-table th:nth-child(4),
+.record-table td:nth-child(4) {
+    width: 40%;
+}
+.record-table th {
+    background-color: #f2f2f2;
+}
+
+
+/* Shodan table */
+.host-table {
+    width: 100%;
+}
+
+.ip-row {
+    background-color: #2c3e50;
+    color: #f2f2f2;
+}
+
+.bold-transparent-code {
+     background-color: transparent;
+     border: transparent;
+     font-weight: bold;
+}
+
+.exposed-service-row {
+    background-color: lightgray;
+}
+
+.vulnerability-info {
+    background-color: #ddd;
+}
+
+.vulnerability-score {
+    width: 10%;
+    text-align: center;
+}
+
+.vulnerability-score.critical {
+    background-color: #c0392b;
+    color: #fff;
+}
+.vulnerability-score.high {
+    background-color: #e67e22; 
+    color: #fff;
+}
+.vulnerability-score.medium {
+    background-color: #f7ca18; 
+    color: #222;
+}
+.vulnerability-score.low {
+    background-color: #27ae60; 
+    color: #fff;
+}
+
+.asn-info {
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+/* Screenshot */
+.screenshot {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Summary Table */
+.summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.summary-risk {
+    font-weight: bold;
+    text-align: center;
+    color: white
+}
+
+.summary-risk.critical {
+    background-color: darkred;
+}
+
+.summary-risk.high {
+    background-color: red;
+}
+
+.summary-risk.medium {
+    background-color: orange;
+}
+
+.summary-risk.low {
+    background-color: green;
+}
+
+.summary-risk.info {
+    background-color: blue;
+}

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OSINT Report – {{ domain }}</title>
+</head>
+<body>
+<!-- To be later used in the template -->
+    <!-- Unique data breaches with description-->
+    {% set breach_dict = {} %}
+    {% for email, breaches in data_breaches.items() %}
+        {% for breach in breaches %}
+            {% if breach_dict.update({breach['Title']: breach['Description']}) %}{% endif %}
+        {% endfor %}
+    {% endfor %}
+
+    <!-- Unique ASNs with ISPs -->
+    {% set asn_dict = {} %}
+    {% for ip, info in hosts.items() %}
+        {% if info['asn'] and info['isp'] %}
+            {% if asn_dict.update({info['asn']: info['isp']}) %}{% endif %}
+        {% endif %}
+    {% endfor %}
+
+    <div class="header">
+        <img src="https://i.imgur.com/x5MX1ah.png">
+    </div>
+    <div class="footer-left">
+        OSINT-{{ domain }} {{ run_datetime.split(' ')[0] }}
+    </div>
+
+    <div class="footer-right">
+        Page <span class="page-counter"></span> of <span class="total-pages"></span>
+    </div>
+
+
+    <div class="title-page">
+        <img class="title-image" src="https://i.ibb.co/dwQT2yj7/Open-Source-Intelligence-Report.png" alt="Open Source Intelligence Report" class="title-image">
+        <div class="title-overlay">
+            <span class="client-domain">{{domain}}</span>
+        </div>
+    </div>
+
+
+    <div class="section" id="introduction">
+        <h1>Introduction</h1>
+        <p><strong>Open Source Intelligence (<em>OSINT</em>)</strong>, is a discipline focused on the <strong>research</strong>, <strong>collection</strong>, and <strong>analysis</strong> of relevant information from publicly accessible sources. These <strong>data</strong>, often available in an <em>unstructured format</em>, are analyzed and correlated to gain a <strong>comprehensive understanding</strong> of the context of interest. In the realm of <strong>OSINT investigations</strong>, significant attention is given to the use of <em>automated techniques</em> to gather data from a wide range of sources, followed by a thorough manual analysis phase aimed at simulating the perspective of a potential <strong>attacker</strong> on the target.</p>
+        <img src="https://www.safeguarding-science.eu/wp-content/uploads/OSINT_diagramm_bl.png" alt="OSINT Diagram" class="screenshot">
+    </div>
+
+    <div class="section" id="process">
+        <h1>Process</h1>
+        This report was generated automatically using an advanced Open-Source Intelligence (OSINT) tool designed to gather and summarize <strong>cybersecurity information</strong> about the domain in question. The process begins by searching a wide range of trusted public sources for any data related to the domain, such as possible security incidents, exposures, or technologies in use. This information is collected in a consistent and organized manner to give the most complete picture possible.<br><br>
+        Because the <strong>entire report is created automatically</strong>, there may be occasions where certain details are missing if they are unavailable from public sources. However, before the report is delivered, all included information is carefully <strong>reviewed for accuracy</strong> to ensure the highest standards of quality and reliability.
+    </div>
+
+    <div class="section" id="retrieved-info-summary">
+        <h1>Retrieved Info Summary</h1>
+        <p>
+            In this section, a <strong>list of information</strong> identified during the <strong>OSINT investigation</strong> for the <strong>target company</strong> is presented.
+            The following table provides <strong>statistical information</strong> about the collected data, including <strong>associated risks</strong> and <strong>occurrences</strong>.
+        </p>
+        <table class="summary-table">
+            <tr>
+                <th>Collected Data</th>
+                <th>Risk</th>
+                <th style="text-align: center;">Occurrences</th>
+            </tr>
+            <tr>
+                <td>Compromised e-mail addresses</td>
+                <td style="color: darkred"><strong><em>Critical</em></strong></td>
+                <td class="summary-risk critical">
+                    {{ leaked_credentials|length }}
+                </td>
+            </tr>
+            <tr>
+                <td>Vulnerabilities on hosts</td>
+                <td style="color: red"><strong><em>High</em></strong></td>
+                <td class="summary-risk high">
+                    {% if hosts.values()|map(attribute='vulns')|map('length')|sum > 0 %}
+                        {{ hosts.values()|map(attribute='vulns')|map('length')|sum }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Compromised IP Addresses</td>
+                <td style="color: red"><strong><em>High</em></strong></td>
+                <td class="summary-risk high">
+                    {{ compromised_ips|length}}
+                </td>
+            </tr>
+            <tr>
+                <td>Data breaches</td>
+                <td style="color: red"><strong><em>High</em></strong></td>
+                <td class="summary-risk high">
+                    {% if breach_dict|length > 0 %}
+                        {{ breach_dict|length }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Exposed Ports</td>
+                <td style="color: orange"><strong><em>Medium</em></strong></td>
+                <td class="summary-risk medium">
+                    {% if hosts|length > 0 %}
+                        {{ hosts.values()|map(attribute='data')|map('length')|sum }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Subdomains</td>
+                <td style="color: blue"><strong><em>Info</em></strong></td>
+                <td class="summary-risk info">
+                    {{ subdomains_ips|length }}
+                </td>
+            </tr>
+            <tr>
+                <td>Hosting providers</td>
+                <td style="color: blue"><strong><em>Info</em></strong></td>
+                <td class="summary-risk info">
+                    {% if asn_dict|length > 0 %}
+                        {{ asn_dict|length }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>IP Addresses</td>
+                <td style="color: blue"><strong><em>Info</em></strong></td>
+                <td class="summary-risk info">
+                    {% if subdomains_ips|length > 0 %}
+                        {{ subdomains_ips.values()|map('length')|sum }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section" id="investigation">
+        <h1>Investigation</h1>
+        <p>
+            In this chapter, we delve into the information-gathering process conducted on the web infrastructure of 
+            {% if web_domain %}{{web_domain}}{% else %}{{domain}}{% endif %}.
+            It's important to note that while a multitude of data sources were queried, only those providing relevant information with potential use for malicious actors are highlighted here.
+        </p>
+    </div>
+
+    <div class="section" id="domain-info">
+        <h1 id="domain">Domain</h1>
+        <h2>DNS Records</h2>
+        <p>
+            Another important source of information for domain analysis is represented by <strong>DNS records</strong>.  
+            These records provide essential technical details, such as the <strong>IP addresses</strong> associated with the domain (<strong>A</strong> and <strong>AAAA</strong> records), <strong>mail servers</strong> (<strong>MX</strong>), <strong>name servers</strong> (<strong>NS</strong>), and other key configurations like <strong>CNAME</strong> and <strong>TXT records</strong>.  
+            By analyzing <strong>DNS records</strong>, it is possible to gain an in-depth understanding of the domain’s configuration and its underlying <strong>technical infrastructure</strong>, helping to identify potential <strong>points of interest</strong> or <strong>vulnerabilities</strong>.
+        </p>
+
+        {% for record_type, content in dns_records.items() %}
+            <h3>{{ record_type.upper() }} Records</h3>
+            {% if content|length == 0 %}
+                <p>No {{ record_type }} records found for <strong>{{ domain }}</strong>.</p>
+            {% else %}
+                {% if record_type == 'txt' %}
+                    {% for txt_record in content %}
+                        <div><code>{{ txt_record }}</code></div>
+                    {% endfor %}
+                {% else %}
+                    <table class="record-table">
+                        {% if loop.first %}
+                            <tr>
+                                <th>Host</th>
+                                <th>IP Address</th>
+                                <th>ASN</th>
+                                <th>ASN Name</th>
+                            </tr>
+                        {% endif %}
+                        {% for record in content %}
+                            <tr>
+                                <td><code>{{ record.host }}</code></td>
+                                <td>{{ record.ips[0].ip if record.ips else 'N/A' }}</td>
+                                <td>{{ record.ips[0].asn if record.ips else 'N/A' }}</td>
+                                <td>{{ record.ips[0].asn_name if record.ips else 'N/A' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <div class="section" id="spf-dmarc">
+        <h2>SPF & DMARC</h2>
+        <p>
+            Another useful check is the analysis of <strong>DMARC</strong> and <strong>SPF</strong> records. These email authentication mechanisms are <strong>essential</strong> for protecting a domain from <strong>abuse</strong> and <strong>phishing</strong> attacks. DMARC (<em>Domain-based Message Authentication, Reporting, and Conformance</em>) allows domain owners to specify how emails <em>failing authentication checks</em> should be handled, and provides detailed reports on unauthorized use attempts. On the other hand, SPF (Sender Policy Framework) defines <em>which servers are authorized to send emails</em> on behalf of the domain.
+        </p>
+
+        <h3>DMARC</h3>
+        <img src="{{ images.dmarc }}" alt="DMARC Info" class="screenshot">
+
+        <h3>SPF</h3>
+        <img src="{{ images.spf }}" alt="SPF Info" class="screenshot">
+    </div>
+
+    <div class="section" id="ssl-check">
+        <h2>SSL Check</h2>
+        <p>
+            SSL/TLS certificates are another crucial component in assessing a domain's security and reliability. They ensure that communications between the website and its users are <strong>encrypted</strong> and <strong>secure</strong>. Analyzing these certificates allows verification of their <strong>validity</strong>, <strong>expiration date</strong>, and the issuing <strong>certificate authority</strong>. Proper configuration can prevent <strong>man-in-the-middle attacks</strong> and ensure <strong>sensitive information</strong> is protected during transit.
+        </p>
+        <p>The analysis of SSL/TLS certificates includes:</p>
+        <ul>
+            <li><strong>Validity Check:</strong> Ensuring the certificate's expiration date is still valid.</li>
+            <li><strong>Certificate Authority:</strong> Identifying the issuing authority and verifying its trustworthiness.</li>
+            <li><strong>Security Configuration:</strong> Examining security settings, such as the use of strong <strong>encryption protocols</strong> and <strong>HSTS</strong> configurations.</li>
+        </ul>
+        <h3>Server Certificate Info</h3>
+        <p>
+            <strong>Common name:</strong> <code>{{ ssl_check['Common name'] }}</code><br>
+            <strong>SANs:</strong> <code>{{ ssl_check['SANs']|join(', ') }}</code><br>
+            <strong>Organization:</strong> {{ ssl_check['Organization'] }}<br>
+            <strong>Location:</strong> {{ ssl_check['Location']|join(', ') }}<br>
+            <strong>Valid from:</strong> {{ ssl_check['Valid from'] }}<br>
+            <strong>Valid until:</strong> {{ ssl_check['Valid until'] }}<br>
+            <strong>Serial Number:</strong> {{ ssl_check['Serial Number'] }}<br>
+            <strong>Signature Algorithm:</strong> {{ ssl_check['Signature Algorithm'] }}<br>
+            <strong>Issuer:</strong> {{ ssl_check['Issuer'] }}<br>
+        </p>
+        <h3>Certificate Chain</h3>
+        <img src="{{ images.ssl_check }}" alt="SSL Chain" class="screenshot">
+    </div>
+
+    <div class="section">
+        <h2>Technology Stack</h2>
+        <table>
+            <tr>
+                <th>Category</th>
+                <th>Employed Tech(s)</th>
+            </tr>
+            {% for category, technologies in tech_stack.items() %}
+                <tr>
+                    <td>{{ category }}</td>
+                    <td>
+                        {% if technologies|length > 0 %}
+                            {{ technologies|join('<br/>')|safe }}
+                        {% else %}
+                            <em>No technologies found</em>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="section" id="header-analysis">
+        <h2>Header Analysis</h2>
+        {% if header_analysis|length > 0 %}
+            <p>The analysis of the headers revealed the absence of important security headers:</p>
+            <table>
+                <tr><th>Header</th><th>Description</th></tr>
+                {% for header, value in header_analysis.items() %}
+                    <tr><td><code>{{ header }}</code></td><td>{{ value }}</td></tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p>All important security headers are present, indicating that the web application has implemented the necessary measures to enhance its security posture.</p>
+        {% endif %}
+    </div>
+
+    <div class="section" id="subdomains">
+        <h1>Subdomains</h1>
+        <p>
+            Here is a list of subdomains discovered during the investigation with respective IP addresses.<br>
+            These subdomains may provide additional attack vectors or insights into the web infrastructure of <strong>{{domain}}</strong>
+        </p>
+        {% if subdomains_ips|length > 0 %}
+            <table>
+                <tr><th>Subdomain</th><th>IP Address(es)</th></tr>
+                {% for subdomain, ips in subdomains_ips.items() %}
+                    <tr>
+                        <td><code>{{ subdomain }}</code></td>
+                        <td>
+                            {% if ips|length > 0 %}
+                                {{ ips|join("<br/>")|safe }}
+                            {% else %}
+                                <em>No IPs Found</em>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p>No subdomains were found for <strong>{{domain}}</strong>.</p>
+        {% endif %}
+    </div>
+
+    <div class="section" id="hosts">
+        <h1>Hosts</h1>
+        <p>In this chapter, all information related to the <strong>hosts</strong> identified during the investigation is collected and analyzed. Each host represents a potential <strong>access point</strong> and a valuable <strong>source of data</strong> for better understanding the target's <strong>network</strong> and <strong>resources</strong>. This chapter provides a clear and in-depth view of each host, highlighting <strong>critical elements</strong> that could be exploited in a potential attack.</p>
+        {% for ip, info in hosts.items() %}
+            <table class="host-table">
+                <tr class="ip-row">
+                    <td colspan="2">
+                        <code class="bold-transparent-code">{{ ip }}</code><br/>
+                        {% if info['city'] or info['country_name'] %}
+                        Location: 
+                        {% if info['city'] %}{{ info['city'] }}{% endif %}
+                        {% if info['city'] and info['country_name'] %}-{% endif %}
+                        {% if info['country_name'] %}{{ info['country_name'] }}{% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+                    {% if info|length > 0 %}
+                        {% if info['data']|length > 0 %}
+                            {% for service in info.data %}
+                                <tr class="exposed-service-row">
+                                    <td colspan="2">              
+                                        <code class="bold-transparent-code">{{service['port']}}/{{service['transport']}}</strong></code><br/>         
+                                        {% if service['product'] or service['os'] != None %}
+                                            <strong><em>Software</em></strong><br/>
+                                            {% if service['product'] %}
+                                                &emsp;{{service['product']}}{% if service['version'] %}/{{service['version']}}{% endif %}<br/>
+                                            {% endif %}
+                                            {% if service['os'] != None %}
+                                                &emsp;{{service['os']}}<br/>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% endif %}
+                        {% if info['vulns']|length > 0 %}      
+                            {% for cve in info['vulns'] %}
+                                <tr class="vulnerability-row">
+                                    <td class="vulnerability-info">
+                                        {% if loop.first %}
+                                            <strong><em>Vulnerabilities</em></strong><br/>
+                                        {% endif %}
+                                        <strong>{{ cve['cve_id'] }}</strong><br/>
+                                        {{cve['summary']}}
+                                    </td>
+                                    <td class="vulnerability-score
+                                        {% if cve['cvss'] >= 9 %}
+                                            critical
+                                        {% elif cve['cvss'] >= 7 %}
+                                            high
+                                        {% elif cve['cvss'] >= 4 %}
+                                            medium
+                                        {% else %}
+                                            low
+                                        {% endif %}
+                                    ">
+                                        <strong>{{ cve['cvss'] }}</strong>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr class="vulnerability-info">
+                                <td colspan="2">
+                                    <strong><em>No vulnerabilities found for this host.</em></strong>
+                                </td>
+                            </tr>
+                        {% endif %}
+                        {% if info['asn'] %}
+                            <tr class="asn-info">
+                                <td colspan="2">
+                                    <strong><em>ASN Information</em></strong><br/>
+                                    &emsp;<code class="bold-transparent-code">{{ info['asn'] }}</code>
+                                    {% if info['isp'] %} ({{ info['isp'] }}){% endif %}<br/>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    {% else %}
+                        <tr class="no-data-row">
+                            <td colspan="2">
+                                <strong><em>No data found for this host.</em></strong>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tr>
+            
+            </table>
+        {% endfor %}
+        
+    </div>
+    <div class="section">
+        <h1>Hosting Providers</h1>
+        <p>This section highlights the <strong>hosting providers</strong> identified from all public data sources. These insights can be valuable in understanding how an attacker might exploit these providers. Specifically, malicious actors may use providers known for <strong>poor security</strong> or <strong>tolerance</strong> of illegal activities to host command and control servers, distribute malware, or launch phishing campaigns. Choosing the right provider can also aid in evading <strong>security measures</strong>, reducing the likelihood of detection or being blocked.</p>
+        {% if asn_dict|length > 0 %}
+            <table>
+                <tr><th>ASN</th><th>ISP</th></tr>
+                {% for asn, isp in asn_dict.items() %}
+                    <tr>
+                        <td><code>{{ asn }}</code></td>
+                        <td>{{ isp }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p>No hosting providers were found for <strong>{{domain}}</strong>.</p>
+        {% endif %}
+    </div>
+    <div class="section">
+        <h1>Compromised Hosts</h1>
+    </div>
+
+    <div class="section">
+        <h1>Compromised Credentials</h1>
+        <p>
+            This section contains all compromised credentials identified during the OSINT investigation. Credential compromise is one of the most severe cybersecurity threats, as it can give attackers direct access to <strong>sensitive internal resources</strong>, <strong>critical systems</strong>, and <strong>confidential data</strong>. The collected information comes from <strong>known breaches</strong>, <strong>data leaks</strong>, and <strong>illicit sharing platforms</strong>, providing an overview of the risks the company might face. This analysis aims to identify potential <strong>entry points</strong> for future attacks and suggest <strong>mitigation measures</strong> to protect the integrity of the company's systems.
+        </p>
+        {% if leaked_credentials|length > 0 %}
+            <h2>Summary of Leaked Credentials</h2>
+            <table>
+                <tr><th>Email</th><th>Count</th></tr>
+                {% for email, leaks in leaked_credentials.items() %}
+                    <tr><td>{{ email }}</td><td>{{ leaks|length }}</td></tr>
+                {% endfor %}
+            </table>
+            <h2>Leaked Credentials</h2>
+            {% for email, leaks in leaked_credentials.items() %}
+                <h3>{{ email }}</h3>
+                <h4>Involvement in Data Breaches</h4>
+                {% if data_breaches[email]|length == 0 %}
+                    <p>No data breaches found for <strong>{{email}}</strong> from public sources.</p>
+                {% else %}
+                    <table>
+                        <tr><th>Title</th><th>Date</th><th>Compromised Data</th></tr>
+                        {% for breach in data_breaches[email] %}
+                            <tr>
+                                <td><strong>{{ breach.Title }}</strong></td>
+                                <td>{{ breach.AddedDate }}</td>
+                                <td>{{ breach.DataClasses|join(', ') }}</td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                {% endif %}
+                <h4>Data Leaks</h4>
+                {% for leak in leaks %}
+                    <div><code class="data-leak">{{ leak }}</code></div>
+                {% endfor %}
+                {% if not loop.last %}
+                    <hr>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <p>No compromised credentials were found for <strong>{{domain}}</strong>.</p>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h1>Data Breach Details</h1>
+        <p>
+        This chapter provides <strong>detailed information</strong> on the <strong>data breaches</strong> affecting the <strong>company</strong>.
+        These details, gathered from <strong>public sources</strong> and <strong>data leak databases</strong>, offer a clear overview of <strong>security incidents</strong> and help to identify <strong>vulnerable areas</strong> within the organization.
+        </p>
+        {% if breach_dict|length > 0 %}
+            <table>
+                <tr><th>Title</th><th>Description</th></tr>
+                {% for title, description in breach_dict.items() %}
+                    <tr>
+                        <td><strong>{{ title }}</strong></td>
+                        <td>{{ description|safe }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p><em>No data breaches found for <strong>{{domain}}</strong>.</em></p>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h1>Conclusion</h1>
+    </div>
+
+</body>
+</html>
