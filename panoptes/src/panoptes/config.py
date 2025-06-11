@@ -11,7 +11,7 @@ import os
 import yaml
 
 _DEFAULTS = {
-    "base_dir": "~/osint-data",
+    "base_dir": "~/panoptes",
     "api_keys": {
         "intelx": "",
         "haveibeenpwned": "",

@@ -46,12 +46,7 @@ def generate_report(ws: Path) -> tuple[Path, Path]:
 
     pdf_path = ws / "osint-report.pdf"
     
-    '''
-    markdown_to_pdf_via_html(
-        markdown_content=html,
-        output_path=pdf_path,
-    )
-    '''
+    
     html_to_pdf(
         html_content=html,
         output_path=pdf_path,

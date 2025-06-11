@@ -39,14 +39,20 @@ def get_groomed_shodan_info(raw: dict):
 
     old_data = raw.get("data", [])
     new_data = list()
-    exposed_service_as_is = ["os", "port", "product", "transport", "version"]
+    exposed_service_as_is = ["data", "os", "port", "product", "transport", "version"]
 
     # Services section
     for exposed_service in old_data:
         to_add = dict()
         for field in exposed_service_as_is:
             if field in exposed_service:
-                to_add[field] = exposed_service[field]
+                if field == "data":
+                    field_to_add = exposed_service[field].split("\n\n")[0].strip()  # Get details until the first double newline (or until the end)
+                else:
+                    field_to_add = exposed_service[field]
+                to_add[field] = field_to_add
+                
+
         port = exposed_service.get("port", "")
         transport = exposed_service.get("transport", "")
         product = exposed_service.get("product", "")
@@ -82,9 +88,12 @@ def get_groomed_shodan_info(raw: dict):
 
             to_add["cve_id"] = result_json.get("cve_id", cve)  # Use the provided CVE ID if not found in response
             to_add["summary"] = result_json.get("summary", "")
-            to_add["cvss"] = result_json.get("cvss", "")
+            to_add["cvss"] = float(result_json.get("cvss", ""))
 
             new_vulns.append(to_add)
+
+            # Sort the vulnerabilities by CVSS score in descending order
+            new_vulns.sort(key=lambda x: x.get("cvss", 0), reverse=True)
         except http.exceptions.RequestException as e:
             log.error(f"Network error during CVE request: {e}")
         except json.JSONDecodeError:
