@@ -77,6 +77,7 @@ def get_groomed_shodan_info(raw: dict):
         return groomed_info
     
     vulns = raw["vulns"]
+    total_cvss = 0.0
 
     for cve in vulns:
         to_add = dict()
@@ -88,7 +89,11 @@ def get_groomed_shodan_info(raw: dict):
 
             to_add["cve_id"] = result_json.get("cve_id", cve)  # Use the provided CVE ID if not found in response
             to_add["summary"] = result_json.get("summary", "")
-            to_add["cvss"] = float(result_json.get("cvss", ""))
+            cvss = float(result_json.get("cvss", ""))
+            to_add["cvss"] = cvss
+
+            total_cvss += cvss
+
 
             new_vulns.append(to_add)
 
@@ -102,6 +107,12 @@ def get_groomed_shodan_info(raw: dict):
             log.error(f"Unexpected error while performing CVE request: {e}")
 
     groomed_info["vulns"] = new_vulns
+
+    if total_cvss > 0:
+        cvss_average = total_cvss / len(new_vulns) if new_vulns else 0.0
+        cvss_average = round(cvss_average, 2)
+        groomed_info["cvss_average"] = cvss_average
+
 
     return groomed_info
 

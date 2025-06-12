@@ -146,7 +146,6 @@ table {
     border-collapse: collapse; 
     width: 100%; 
     margin: 20px 0;
-    page-break-inside: avoid;
 }
 th, td { 
     border: 1px solid #ddd; 
@@ -156,6 +155,10 @@ th, td {
 th { 
     background-color: #f8f9fa; 
     font-weight: bold;
+}
+tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 img { 
     max-width: 100%; 
@@ -184,6 +187,11 @@ pre {
     padding: 5px;
     font-size: 10pt;
 }
+
+.data-leak-container {
+    margin-bottom: 10px;
+}
+
 .record-table {
     border-collapse: collapse;
 }
@@ -247,7 +255,7 @@ pre {
 .vulnerability-score {
     width: 10%;
     /* Necessary to avoid score in a page and details in another */
-    height: 100px;
+    height: 50px;
     text-align: center;
 }
 
@@ -267,6 +275,37 @@ pre {
     background-color: #27ae60; 
     color: #fff;
 }
+
+.vulnerability-summary-header {
+    break-before: avoid;
+    page-break-before: avoid; /* Fallback for legacy engines */
+}
+
+.vulnerability-summary-table {
+    break-before: avoid;
+    page-break-before: avoid; /* Fallback for legacy engines */
+}
+
+.vulnerability-summary-ip {
+    background-color: #0b4697;
+    color: #f2f2f2;
+    font-weight: bold;
+    width: 40%;
+}
+
+.vulnerability-summary-vulns {
+    background-color: #6989c5;
+    color: #f2f2f2;
+    font-weight: bold;
+    width: 20%;
+}
+
+.vulnerability-summary-risk {
+    font-weight: bold;
+    width: 30%;
+    text-align: center;
+}
+
 
 .asn-info {
     background-color: #f0f0f0;
@@ -346,9 +385,8 @@ pre {
     page-break-inside: avoid;   /* Fallback for legacy engines */
 }
 
-/*
+
 .section {
-    break-inside: avoid;
-    page-break-inside: avoid;
+    page-break-before: always;
+    break-before: always;
 }
-*/

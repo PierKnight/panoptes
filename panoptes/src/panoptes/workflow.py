@@ -106,6 +106,7 @@ def run_collect(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> No
 
     
     # 3) run each service  ---------------------------------------
+    ''' 
     with console.status("[bold green]Running Web App Technology fingerprinting...[/bold green]") as status:
         # --- Wappalyzer Web App Fingerprinting ---------------------------------------------
         raw_wappalyzer_data = wappalyzer.analyze(
@@ -285,62 +286,90 @@ def run_collect(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> No
                         ips_info[ip] = groomed
                 except Exception as e:
                     log.error("Shodan failed for %s: %s", ip, e, exc_info=True)
+            # Re-order based on ips_info[ip]["cvss_average"] if it exists
+            ips_info = dict(sorted(ips_info.items(), key=lambda item: item[1].get("cvss_average", 0), reverse=True))
+
             shodan_path = ws.file("shodan", "shodan_info.json")
             if ips_info:
                 shodan_path.write_text(json.dumps(ips_info, indent=2))
-                
+    '''        
     # --- IntelX Leaked Credentials Retrieval ---------------------------------------
     intelx = clients.get("intelx")
     if intelx:
-        with console.status("[bold green]Running Leaked Credentials Retrieval...[/bold green]") as status:
-            intelligent_search_id = intelx.intelligent_search(
-                term=mail_domain, media=0
-            )
-            
-        if intelligent_search_id:
-            filetype = "zip"
-            log.info(f"Intelligent search ID: {intelligent_search_id}")
-            console.print(f"Intelligent search ID: [bold blue]{intelligent_search_id}[/bold blue]")
+        stop_search = False
+        credentials = dict()
 
-            for i in track(range(10), description="Waiting 10 seconds to allow the search to complete..."):
-                time.sleep(1)  # Hard hard work being done here, dnd
-            
-            with console.status("[bold green]Retrieving leaked data...[/bold green]") as status:
-                content = intelx.intelligent_search_export(filetype=filetype, search_id=intelligent_search_id, limit=1000)
-            if content:
-                with console.status("[bold green]Collecting credentials from exported files...[/bold green]") as status:
-                    log.info("Size of the credentials content: %d bytes", len(content))
-                    if content is not {}:
-                        # Writes to disk the search results (as a CSV or ZIP file)
-                        filename = f"intelx_search_{intelligent_search_id}.{filetype}"
+        # We start first with sort=2 (i.e., most relevant results first)
+        for sort in (2, 1):
+            with console.status("[bold green]Running Leaked Credentials Retrieval...[/bold green]") as status:
+                intelligent_search_id = intelx.intelligent_search(
+                    term=mail_domain,
+                    media=24,
+                    sort=sort,
+                )
+                
+            if intelligent_search_id:
+                filetype = "zip"
+                log.info(f"Intelligent search ID (sort={sort}): {intelligent_search_id}")
+                console.print(f"Intelligent search ID (sort={sort}): [bold blue]{intelligent_search_id}[/bold blue]")
 
-                        credentials_path = ws.file("intelx", f"leaked_credentials.json")
-                        intelx_breach_files = ws.file("intelx", "breach_files")
-                        intelx_breach_files.mkdir(parents=True, exist_ok=True)
+                for i in track(range(10), description="Waiting 10 seconds to allow the search to complete..."):
+                    time.sleep(1)  # Hard hard work being done here, dnd
+                
+                with console.status("[bold green]Retrieving leaked data...[/bold green]") as status:
+                    content = intelx.intelligent_search_export(filetype=filetype, search_id=intelligent_search_id, limit=1000)
+                if content:
+                    with console.status("[bold green]Collecting credentials from exported files...[/bold green]") as status:
+                        log.info("Size of the credentials content: %d bytes", len(content))
+                        if content is not {}:
+                            # Writes to disk the search results (as a CSV or ZIP file)
+                            filename = f"intelx_search_{intelligent_search_id}_{sort}.{filetype}"
 
-                        # Save the content to a file
-                        with open(os.path.join(intelx_breach_files, filename), "wb") as f:
-                            f.write(content)
+                            intelx_breach_files = ws.file("intelx", "breach_files")
+                            intelx_breach_files.mkdir(parents=True, exist_ok=True)
 
-                        if filetype == "zip":
-                            filepath = os.path.join(intelx_breach_files, filename)
-                            extract_zip(filepath)
-                        elif filetype == "csv":
-                            # Not sure if we will ever use CSV, but let's keep it here
-                            pass
+                            # Save the content to a file
+                            with open(os.path.join(intelx_breach_files, filename), "wb") as f:
+                                f.write(content)
 
-                        if os.path.exists(intelx_breach_files):
-                            credential_regex = rf"{cfg.get("email_without_domain_regex")}{mail_domain}:\S+"
-                            extracted_credentials = start_credentials_retrieving_from_folder(str(intelx_breach_files), credential_regex)
-                            credentials_path.write_text(
-                                json.dumps(extracted_credentials, indent=2)
-                            )
-                            log.info("Leaked credentials saved to %s", ws.file("intelx", "leaked_credentials.json"))
+                            if filetype == "zip":
+                                filepath = os.path.join(intelx_breach_files, filename)
+                                extract_zip(filepath)
+                            elif filetype == "csv":
+                                # Not sure if we will ever use CSV, but let's keep it here
+                                pass
 
-                            # Delete the breach files directory after processing (has files in it)
-                            shutil.rmtree(intelx_breach_files)
+                            if os.path.exists(intelx_breach_files):
+                                credential_regex = rf"{cfg.get("email_without_domain_regex")}{mail_domain}:\S+"
+                                extracted_credentials = get_credentials_from_folder(str(intelx_breach_files), credential_regex)
+                                
+                                # Merge the extracted credentials with the existing ones
+                                for key, value in extracted_credentials.items():
+                                    if key in credentials:
+                                        credentials[key].union(value)
+                                    else:
+                                        credentials[key] = value
+                                
+                                console.print(f"Size of the extracted files: {get_folder_size(intelx_breach_files)} bytes")
+                                console.print(f"intelx_breach_files directory: [bold blue]{intelx_breach_files}[/bold blue]")
+                                # if extracted files are more than 1,9 GB, we stop the search
+                                if get_folder_size(intelx_breach_files) < 1_900_000_000:  # 1.8 GB
+                                    log.info("Extracted files have size less than 1.9 GB, stopping the search")
+                                    stop_search = True
+                                
+                                # Delete the breach files directory after processing (has files in it)
+                                shutil.rmtree(intelx_breach_files)
             else:
                 log.error("Intelligent search export result is empty")
+            if stop_search:
+                break
+
+        credentials_path = ws.file("intelx", "leaked_credentials.json")
+        credentials = sort_credentials(credentials)
+        credentials_path.write_text(
+            json.dumps(credentials, indent=2)
+        )
+        console.print(f"Leaked credentials saved to [bold blue]{credentials_path}[/bold blue]")
     
     # --- Have I Been Pwned? Breaches Retrieval ---------------------------------------
     with console.status("[bold green]Running Data Breaches Retrieval...[/bold green]") as status:

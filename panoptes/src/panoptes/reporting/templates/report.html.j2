@@ -78,8 +78,9 @@
                 <td>Vulnerabilities on hosts</td>
                 <td style="color: red"><strong><em>High</em></strong></td>
                 <td class="summary-risk high">
-                    {% if hosts.values()|map(attribute='vulns')|map('length')|sum > 0 %}
-                        {{ hosts.values()|map(attribute='vulns')|map('length')|sum }}
+                    {% set total_vulnerabilities = hosts.values()|map(attribute='vulns')|map('length')|sum %}
+                    {% if total_vulnerabilities > 0 %}
+                        {{ total_vulnerabilities }}
                     {% else %}
                         0
                     {% endif %}
@@ -281,7 +282,7 @@
             These subdomains may provide additional attack vectors or insights into the web infrastructure of <strong>{{domain}}</strong>
         </p>
         {% if subdomains_ips|length > 0 %}
-            <table>
+            <table class="subdomain-table">
                 <tr><th>Subdomain</th><th>IP Address(es)</th></tr>
                 {% for subdomain, ips in subdomains_ips.items() %}
                     <tr>
@@ -304,98 +305,145 @@
     <div class="section" id="hosts">
         <h2>Hosts</h2>
         <p>In this chapter, all information related to the <strong>hosts</strong> identified during the investigation is collected and analyzed. Each host represents a potential <strong>access point</strong> and a valuable <strong>source of data</strong> for better understanding the target's <strong>network</strong> and <strong>resources</strong>. This chapter provides a clear and in-depth view of each host, highlighting <strong>critical elements</strong> that could be exploited in a potential attack.</p>
-        {% for ip, info in hosts.items() %}
-            <table class="host-table">
-                <tr class="ip-row">
-                    <td colspan="2">
-                        <code class="bold-transparent-code">{{ ip }}</code><br/>
-                        {% if info['city'] or info['country_name'] %}
-                        Location: 
-                        {% if info['city'] %}{{ info['city'] }}{% endif %}
-                        {% if info['city'] and info['country_name'] %}-{% endif %}
-                        {% if info['country_name'] %}{{ info['country_name'] }}{% endif %}
-                        {% endif %}
-                    </td>
+        {% if hosts|length > 0 %}
+            <h3 class="vulerability-summary-header">
+                Summary of Vulnerabilities
+            </h3>
+            <table class="vulnerability-summary-table">
+                <tr>
+                    <th class="vulnerability-summary-ip">IP Address</th>
+                    <th class="vulnerability-summary-vulns">Num. of vulnerabilities</th>
+                    <th class="vulnerability-summary-risk">Risk level</th>
                 </tr>
-                    {% if info|length > 0 %}
-                        {% if info['data']|length > 0 %}
-                            {% for service in info.data %}
-                                <tr class="exposed-service-header">
-                                    <td colspan="2">
-                                        <code class="bold-transparent-code">{{service['port']}}/{{service['transport']}}</strong></code><br/>   
-                                    </td>
-                                </tr>
-                                <tr class="exposed-service-data">
-                                    <td colspan="2">                    
-                                        {% if service['product'] or service['os'] != None %}
-                                            <strong><em>Software</em></strong><br/>
-                                            {% if service['product'] %}
-                                                &emsp;{{service['product']}}{% if service['version'] %}/{{service['version']}}{% endif %}<br/>
+                {% for ip, info in hosts.items() %}
+                {% if info['vulns'] %}
+                    <tr>
+                        <td><code>{{ ip }}</code></td>
+                        <td>{{ info['vulns']|length }}</td>
+                        <td class="vulnerability-score
+                                            {% if info['cvss_average'] >= 9 %}
+                                                critical
+                                            {% elif info['cvss_average'] >= 7 %}
+                                                high
+                                            {% elif info['cvss_average'] >= 4 %}
+                                                medium
+                                            {% else %}
+                                                low
                                             {% endif %}
-                                            {% if service['os'] != None %}
-                                                &emsp;{{service['os']}}<br/>
-                                            {% endif %}
-                                        {% endif %}
-                                        {% if service['data'] %}
-                                            <strong><em>Data</em></strong><br/>
-                                            <pre style="font-size: 12px;">{{service['data']}}</pre>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        {% endif %}
-                        {% if info['asn'] %}
-                            <tr class="asn-info">
-                                <td colspan="2">
-                                    <strong><em>ASN Information</em></strong><br/>
-                                    &emsp;<code class="bold-transparent-code">{{ info['asn'] }}</code>
-                                    {% if info['isp'] %} ({{ info['isp'] }}){% endif %}<br/>
-                                </td>
-                            </tr>
-                        {% endif %}
-                        {% if info['vulns']|length > 0 %}      
-                            {% for cve in info['vulns'] %}
-                                <tr class="vulnerability-row">
-                                    <td class="vulnerability-info">
-                                        {% if loop.first %}
-                                            <strong><em>Vulnerabilities</em></strong><br/>
-                                        {% endif %}
-                                        <strong>{{ cve['cve_id'] }}</strong><br/>
-                                        {{cve['summary']}}
-                                    </td>
-                                    <td class="vulnerability-score
-                                        {% if cve['cvss'] >= 9 %}
-                                            critical
-                                        {% elif cve['cvss'] >= 7 %}
-                                            high
-                                        {% elif cve['cvss'] >= 4 %}
-                                            medium
-                                        {% else %}
-                                            low
-                                        {% endif %}
-                                    ">
-                                        <strong>{{ cve['cvss'] }}</strong>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr class="vulnerability-info">
-                                <td colspan="2">
-                                    <strong><em>No vulnerabilities found for this host.</em></strong>
-                                </td>
-                            </tr>
-                        {% endif %}
-                    {% else %}
-                        <tr class="no-data-row">
-                            <td colspan="2">
-                                <strong><em>No data found for this host.</em></strong>
-                            </td>
-                        </tr>
-                    {% endif %}
-                </tr>
-            
+                        ">
+                            <strong>
+                                {% if info['cvss_average'] >= 9 %}
+                                    critical
+                                {% elif info['cvss_average'] >= 7 %}
+                                    high
+                                {% elif info['cvss_average'] >= 4 %}
+                                    medium
+                                {% else %}
+                                    low
+                                {% endif %}
+                            </strong>
+                        </td>                    
+                    </tr>
+                {% endif %}    
+                {% endfor %}
             </table>
-        {% endfor %}
+            {% for ip, info in hosts.items() %}   
+                <table class="host-table">
+                    <tr class="ip-row">
+                        <td colspan="2">
+                            <code class="bold-transparent-code">{{ ip }}</code><br/>
+                            {% if info['city'] or info['country_name'] %}
+                            Location: 
+                            {% if info['city'] %}{{ info['city'] }}{% endif %}
+                            {% if info['city'] and info['country_name'] %}-{% endif %}
+                            {% if info['country_name'] %}{{ info['country_name'] }}{% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                        {% if info|length > 0 %}
+                            {% if info['data']|length > 0 %}
+                                {% for service in info.data %}
+                                        <tr class="exposed-service-header">
+                                            <td colspan="2">
+                                                <code class="bold-transparent-code">{{service['port']}}/{{service['transport']}}</strong></code><br/>   
+                                            </td>
+                                        </tr>
+                                        <tr class="exposed-service-data">
+                                            <td colspan="2">                    
+                                                {% if service['product'] or service['os'] != None %}
+                                                    <strong><em>Software</em></strong><br/>
+                                                    {% if service['product'] %}
+                                                        &emsp;{{service['product']}}{% if service['version'] %}/{{service['version']}}{% endif %}<br/>
+                                                    {% endif %}
+                                                    {% if service['os'] != None %}
+                                                        &emsp;{{service['os']}}<br/>
+                                                    {% endif %}
+                                                {% endif %}
+                                                {% if service['data'] %}
+                                                    <strong><em>Data</em></strong><br/>
+                                                    <pre style="font-size: 12px;">{{service['data']}}</pre>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                {% endfor %}
+                            {% endif %}
+                            {% if info['asn'] %}
+                                <tr class="asn-info">
+                                    <td colspan="2">
+                                        <strong><em>ASN Information</em></strong><br/>
+                                        &emsp;<code class="bold-transparent-code">{{ info['asn'] }}</code>
+                                        {% if info['isp'] %} ({{ info['isp'] }}){% endif %}<br/>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                            {% if info['vulns']|length > 0 %}      
+                                {% for cve in info['vulns'] %}
+                                    <tr class="vulnerability-row">
+                                        <td class="vulnerability-info">
+                                            {% if loop.first %}
+                                                <strong><em>Vulnerabilities</em></strong><br/>
+                                            {% endif %}
+                                            <strong>{{ cve['cve_id'] }}</strong><br/>
+                                            {{cve['summary']}}
+                                        </td>
+                                        <td class="vulnerability-score
+                                            {% if cve['cvss'] >= 9 %}
+                                                critical
+                                            {% elif cve['cvss'] >= 7 %}
+                                                high
+                                            {% elif cve['cvss'] >= 4 %}
+                                                medium
+                                            {% else %}
+                                                low
+                                            {% endif %}
+                                        ">
+                                            <strong>{{ cve['cvss'] }}</strong>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr class="vulnerability-info">
+                                    <td colspan="2">
+                                        <strong><em>No vulnerabilities found for this host.</em></strong>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% else %}
+                            <tr class="no-data-row">
+                                <td colspan="2">
+                                    <strong><em>No data found for this host.</em></strong>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tr>
+                </table>
+            {% endfor %}
+        {% else %}
+        <em>
+            No hosts were found for <strong>{{domain}}</strong>.
+        </em>
+        {% endif %}
+        
         
     </div>
     <div class="section">
@@ -489,7 +537,9 @@
                     
                     <h5>Data Leaks</h4>
                     {% for leak in leaks %}
-                        <div><code class="data-leak">{{ leak }}</code></div>
+                        <div class="data-leak-container">
+                            <code class="data-leak">{{ leak }}</code>
+                        </div>
                     {% endfor %}
                 </div>
                 

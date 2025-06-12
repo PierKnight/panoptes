@@ -275,9 +275,21 @@ def get_credentials_from_file(file_path: str, credential_regex: str) -> dict[str
 
     return email_credentials
 
+def sort_credentials(credentials: dict[str, set[str]]) -> dict[str, list[str]]:
+    """
+    Sorts the credentials dictionary by email and converts sets to sorted lists.
+    Args:
+        credentials (dict[str, set[str]]): A dictionary where keys are emails and values are sets of credentials.
+    Returns:
+        dict[str, list[str]]: A sorted dictionary where each email maps to a sorted list of credentials.
+    """
+    sorted_credentials = {}
+    for email in sorted(credentials.keys()):
+        sorted_credentials[email] = sorted(credentials[email])
+    return sorted_credentials
 
 @typechecked
-def start_credentials_retrieving_from_folder(folder_path: str, credential_regex: str):
+def get_credentials_from_folder(folder_path: str, credential_regex: str):
     # Breach file name (str) to credentials (list[str]) association
     credentials = {}
     
@@ -313,8 +325,6 @@ def start_credentials_retrieving_from_folder(folder_path: str, credential_regex:
                 finally:
                     pbar.update(1)  # update progress bar
 
-        credentials = dict(sorted(credentials.items(), key=lambda item: item[0]))
-
         for email in credentials:
             credentials[email] = sorted(credentials[email])
     return credentials
@@ -345,3 +355,23 @@ def get_breached_emails(credentials_path: str) -> set[str]:
             log.error(f"An unexpected error occurred: {e}")
         
     return set()
+
+
+def get_folder_size(folder_path: str) -> int:
+    """
+    Calculate the total size of a folder in bytes.
+    
+    Args:
+        folder_path (str): The path to the folder.
+        
+    Returns:
+        int: Total size of the folder in bytes.
+    """
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(folder_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            # Skip if it's a symlink
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+    return total_size
