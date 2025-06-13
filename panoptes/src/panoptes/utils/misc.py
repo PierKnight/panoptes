@@ -325,8 +325,6 @@ def get_credentials_from_folder(folder_path: str, credential_regex: str):
                 finally:
                     pbar.update(1)  # update progress bar
 
-        for email in credentials:
-            credentials[email] = sorted(credentials[email])
     return credentials
 
 

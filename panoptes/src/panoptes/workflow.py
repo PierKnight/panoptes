@@ -81,7 +81,7 @@ def run_collect(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> No
     ws = Workspace(cfg["base_dir"], domain, DEFAULT_SERVICES)
 
     console.print(f"Workspace created at [bold blue]{ws.root}[/bold blue]")
-
+    
     
     # 2) instantiate required clients  ----------------------------
     clients = {}
@@ -103,10 +103,8 @@ def run_collect(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> No
     # If mail_domain is not provided, we will use the domain as the mail domain
     mail_domain = mail_domain or domain
     log.info("Mail domain is %s", mail_domain)
-
     
     # 3) run each service  ---------------------------------------
-    ''' 
     with console.status("[bold green]Running Web App Technology fingerprinting...[/bold green]") as status:
         # --- Wappalyzer Web App Fingerprinting ---------------------------------------------
         raw_wappalyzer_data = wappalyzer.analyze(
@@ -184,7 +182,7 @@ def run_collect(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> No
                 console.print(f"HTTP Security Headers results saved to [bold blue]{ws.file('httpsecurityheaders', 'missing_headers.json')}[/bold blue]")
                 log.info("HTTP Security Headers results saved to %s", ws.file("httpsecurityheaders", "missing_headers.json"))
     
-
+    
     # --- SSL Shopper Certificate Chain Analysis ----------------------
     sslshopper = clients.get("sslshopper")
     if sslshopper:
@@ -292,7 +290,7 @@ def run_collect(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> No
             shodan_path = ws.file("shodan", "shodan_info.json")
             if ips_info:
                 shodan_path.write_text(json.dumps(ips_info, indent=2))
-    '''        
+    
     # --- IntelX Leaked Credentials Retrieval ---------------------------------------
     intelx = clients.get("intelx")
     if intelx:
@@ -320,7 +318,6 @@ def run_collect(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> No
                     content = intelx.intelligent_search_export(filetype=filetype, search_id=intelligent_search_id, limit=1000)
                 if content:
                     with console.status("[bold green]Collecting credentials from exported files...[/bold green]") as status:
-                        log.info("Size of the credentials content: %d bytes", len(content))
                         if content is not {}:
                             # Writes to disk the search results (as a CSV or ZIP file)
                             filename = f"intelx_search_{intelligent_search_id}_{sort}.{filetype}"
@@ -352,9 +349,9 @@ def run_collect(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> No
                                 
                                 console.print(f"Size of the extracted files: {get_folder_size(intelx_breach_files)} bytes")
                                 console.print(f"intelx_breach_files directory: [bold blue]{intelx_breach_files}[/bold blue]")
-                                # if extracted files are more than 1,9 GB, we stop the search
-                                if get_folder_size(intelx_breach_files) < 1_900_000_000:  # 1.8 GB
-                                    log.info("Extracted files have size less than 1.9 GB, stopping the search")
+                                # if extracted files are more than (roughly) 2,0 GB, we stop the search
+                                if get_folder_size(intelx_breach_files) < 2_000_000_000:  # 1.8 GB
+                                    log.info("Extracted files have size less than 2 GB, stopping the search")
                                     stop_search = True
                                 
                                 # Delete the breach files directory after processing (has files in it)
@@ -363,9 +360,11 @@ def run_collect(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> No
                 log.error("Intelligent search export result is empty")
             if stop_search:
                 break
+            console.print(f"[bold yellow]Running IntelX's search also with ascending relevance sorting since export limit size was reached...[/bold yellow]")
 
         credentials_path = ws.file("intelx", "leaked_credentials.json")
-        credentials = sort_credentials(credentials)
+        with console.status("[bold green]Sorting credentials..[/bold green]") as status:
+            credentials = sort_credentials(credentials)
         credentials_path.write_text(
             json.dumps(credentials, indent=2)
         )

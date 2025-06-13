@@ -1,13 +1,14 @@
-import rich_click, logging
+import click, logging
 from panoptes import config, workflow, utils
 
 from pathlib import Path
 
-@rich_click.group()
-@rich_click.option("-v", "--verbose", is_flag=True)
+@click.group()
+@click.option("-v", "--verbose", is_flag=True)
 def cli(verbose):
     logging_level = "DEBUG" if verbose else "CRITICAL"
     utils.logging.init_logger(logging_level)
+    print_banner()
 
 
 def print_banner():
@@ -26,23 +27,22 @@ def print_banner():
     |                 by Alessandro Monetti (alessandromonetti@outlook.it)                 |
     +--------------------------------------------------------------------------------------+
     """
-    rich_click.echo(rich_click.style(banner, fg="blue", bold=True))
+    click.echo(click.style(banner, fg="blue", bold=True))
 
 @cli.command()
-@rich_click.argument("domain")
-@rich_click.option("--mail-domain")
+@click.argument("domain")
+@click.option("--mail-domain")
 def collect(domain, mail_domain):
     """Collect data for DOMAIN and optionally MAIL_DOMAIN."""
-    print_banner()
+    
     cfg = config.load()
     workflow.run_collect(cfg, domain, mail_domain)
 
 
 @cli.command()
-@rich_click.argument("domain")
+@click.argument("domain")
 def report(domain):
     """Generate a report (HTML and its PDF export) for the collected data in DOMAIN."""
-    print_banner()
     cfg = config.load()
     workflow.run_report(cfg, domain)
     

@@ -10,6 +10,8 @@ from panoptes.utils.selenium_tools import get_screenshot_and_element_by_class_na
 
 log = logging.get(__name__)
 
+import re
+
 from typeguard import typechecked
 
 
@@ -44,6 +46,13 @@ class SSLShopper(BaseHTTPClient):
                     value = [v.strip() for v in value.split(",")]
                 # Add to the dictionary
                 certificate_json[key] = value
+            else:
+                if line.startswith("Valid from"):
+                    validity_regex = r"from (.*)? to (.*)"
+                    match = re.search(validity_regex, line)
+                    if match:
+                        certificate_json["Valid from"] = match.group(1).strip()
+                        certificate_json["Valid until"] = match.group(2).strip()
         return certificate_json
     
     def get_ssl_certificate_info(self, website_url: str) -> dict:

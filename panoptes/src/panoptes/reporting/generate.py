@@ -5,7 +5,9 @@ import json
 from .pdf import html_to_pdf, markdown_to_pdf_via_html
 import datetime
 from typeguard import typechecked
+from rich.console import Console
 
+console = Console()
 
 OLD_TEMPLATE_ENV = Environment(
     loader=FileSystemLoader(Path(__file__).parent/"templates"),
@@ -36,19 +38,22 @@ def generate_report(ws: Path) -> tuple[Path, Path]:
     json_path = write_report_json(ws)
     TEMPLATE_ENV.globals["ws"] = ws  # make 'ws' available in the template
     
-    # markdown = TEMPLATE.render(**json.loads(json_path.read_text()))
-    html = TEMPLATE.render(**json.loads(json_path.read_text()))
+    with console.status("Rendering HTML from template..."):   
+        # markdown = TEMPLATE.render(**json.loads(json_path.read_text()))
+        html = TEMPLATE.render(**json.loads(json_path.read_text()))
     
     ### Write rendered template to file
     ws.mkdir(parents=True, exist_ok=True)
     html_path = ws / "osint-report.html"
     html_path.write_text(html)
 
-    pdf_path = ws / "osint-report.pdf"
+    domain = ws.name.split(".")[-2]  # Extract domain from workspace name
+
+    pdf_path = ws / ("osint-report-" + domain + ".pdf")
     
-    
-    html_to_pdf(
-        html_content=html,
-        output_path=pdf_path,
-       )
+    with console.status("Generating PDF from HTML..."):
+        html_to_pdf(
+            html_content=html,
+            output_path=pdf_path,
+        )
     return html_path, pdf_path

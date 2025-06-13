@@ -22,6 +22,10 @@
         {% endif %}
     {% endfor %}
 
+    {% set total_vulns = hosts.values()|map(attribute='total_vulns')|sum %}
+    
+
+
     
     <div class="header">
         <img src="https://i.imgur.com/x5MX1ah.png">
@@ -71,7 +75,11 @@
                 <td>Compromised e-mail addresses</td>
                 <td style="color: darkred"><strong><em>Critical</em></strong></td>
                 <td class="summary-risk critical">
-                    {{ leaked_credentials|length }}
+                    {% if leaked_credentials|length > 0 %}
+                        {{ leaked_credentials|length }}
+                    {% else %}
+                        0
+                    {% endif %}
                 </td>
             </tr>
             <tr>
@@ -119,7 +127,11 @@
                 <td>Subdomains</td>
                 <td style="color: blue"><strong><em>Info</em></strong></td>
                 <td class="summary-risk info">
-                    {{ subdomains_ips|length }}
+                    {% if subdomains_ips|length > 0 %}
+                        {{ subdomains_ips.keys()|length }}
+                    {% else %}
+                        0
+                    {% endif %}
                 </td>
             </tr>
             <tr>
@@ -224,15 +236,55 @@
         </ul>
         <h4 id="server-certificate-info">Server Certificate Info</h4>
         <p>
-            <strong>Common name:</strong> <code>{{ ssl_check['Common name'] }}</code><br>
-            <strong>SANs:</strong> <code>{{ ssl_check['SANs']|join(', ') }}</code><br>
-            <strong>Organization:</strong> {{ ssl_check['Organization'] }}<br>
-            <strong>Location:</strong> {{ ssl_check['Location']|join(', ') }}<br>
-            <strong>Valid from:</strong> {{ ssl_check['Valid from'] }}<br>
-            <strong>Valid until:</strong> {{ ssl_check['Valid until'] }}<br>
-            <strong>Serial Number:</strong> {{ ssl_check['Serial Number'] }}<br>
-            <strong>Signature Algorithm:</strong> {{ ssl_check['Signature Algorithm'] }}<br>
-            <strong>Issuer:</strong> {{ ssl_check['Issuer'] }}<br>
+            {% if ssl_check['Common name'] %}
+                <strong>Domain:</strong> <code>{{ ssl_check['Common name'] }}</code><br>
+            {% endif %}
+            
+            {% if ssl_check['Common name']|length > 0 %}
+                <strong>Common name:</strong><code>{{ ssl_check['Common name'] }}</code><br>
+            {% endif %}
+            
+            {% if ssl_check['SANs'] %}
+                <!-- If ssl_check['SANs'] is specifically a list, join by the comma, else it is a string -->
+                {% if ssl_check['SANs'] is string %}
+                    <strong>SANs:</strong> <code>{{ ssl_check['SANs'] }}</code><br>   
+                {% else  %}
+                    <strong>SANs:</strong> <code>{{ ssl_check['SANs']|join(', ') }}</code><br>
+                {% endif %}
+            {% endif %}
+            
+            {% if ssl_check['Organization'] %}
+                <strong>Organization:</strong> <code>{{ ssl_check['Organization'] }}</code><br>
+            {% endif %}
+            
+            {% if ssl_check['Location'] %}
+                <!-- If ssl_check['Location'] is specifically a list, join by the comma, else it is a string -->
+                {% if ssl_check['Location'] is string %}
+                    <strong>Location:</strong> <code>{{ ssl_check['Location']|join(', ') }}</code><br>
+                {% else  %}
+                    <strong>Location:</strong> <code>{{ ssl_check['Location'] }}</code><br>
+                {% endif %}
+            {% endif %}
+
+            {% if ssl_check['Valid from'] %}
+                <strong>Valid from:</strong> <code>{{ ssl_check['Valid from'] }}</code><br>
+            {% endif %}
+            
+            {% if ssl_check['Valid until'] %}
+                <strong>Valid until:</strong> <code>{{ ssl_check['Valid until'] }}</code><br>
+            {% endif %}
+            
+            {% if ssl_check['Serial Number'] %}
+                <strong>Serial Number:</strong> <code>{{ ssl_check['Serial Number'] }}</code><br>
+            {% endif %}
+            
+            {% if ssl_check['Signature Algorithm'] %}
+                <strong>Signature Algorithm:</strong> <code>{{ ssl_check['Signature Algorithm'] }}</code><br>
+            {% endif %}
+            
+            {% if ssl_check['Issuer'] %}
+                <strong>Issuer:</strong> <code>{{ ssl_check['Issuer'] }}</code><br>
+            {% endif %}
         </p>
         <h4 id="certificate-chain">Certificate Chain</h4>
         <img src="{{ images.ssl_check }}" alt="SSL Chain" class="screenshot">
@@ -310,42 +362,46 @@
                 Summary of Vulnerabilities
             </h3>
             <table class="vulnerability-summary-table">
-                <tr>
-                    <th class="vulnerability-summary-ip">IP Address</th>
-                    <th class="vulnerability-summary-vulns">Num. of vulnerabilities</th>
-                    <th class="vulnerability-summary-risk">Risk level</th>
-                </tr>
-                {% for ip, info in hosts.items() %}
-                {% if info['vulns'] %}
+                {% if total_vulns > 0.0 %}
                     <tr>
-                        <td><code>{{ ip }}</code></td>
-                        <td>{{ info['vulns']|length }}</td>
-                        <td class="vulnerability-score
-                                            {% if info['cvss_average'] >= 9 %}
-                                                critical
-                                            {% elif info['cvss_average'] >= 7 %}
-                                                high
-                                            {% elif info['cvss_average'] >= 4 %}
-                                                medium
-                                            {% else %}
-                                                low
-                                            {% endif %}
-                        ">
-                            <strong>
-                                {% if info['cvss_average'] >= 9 %}
-                                    critical
-                                {% elif info['cvss_average'] >= 7 %}
-                                    high
-                                {% elif info['cvss_average'] >= 4 %}
-                                    medium
-                                {% else %}
-                                    low
-                                {% endif %}
-                            </strong>
-                        </td>                    
+                        <th class="vulnerability-summary-ip">IP Address</th>
+                        <th class="vulnerability-summary-vulns">Num. of vulnerabilities</th>
+                        <th class="vulnerability-summary-risk">Risk level</th>
                     </tr>
-                {% endif %}    
-                {% endfor %}
+                    {% for ip, info in hosts.items() %}    
+                        {% if info['vulns']|length > 0 %}
+                        <tr>
+                            <td><code>{{ ip }}</code></td>
+                            <td>{{ info['vulns']|length }}</td>
+                            <td class="vulnerability-score
+                                                {% if info['cvss_average'] >= 9 %}
+                                                    critical
+                                                {% elif info['cvss_average'] >= 7 %}
+                                                    high
+                                                {% elif info['cvss_average'] >= 4 %}
+                                                    medium
+                                                {% else %}
+                                                    low
+                                                {% endif %}
+                            ">
+                                <strong>
+                                    {% if info['cvss_average'] >= 9 %}
+                                        critical
+                                    {% elif info['cvss_average'] >= 7 %}
+                                        high
+                                    {% elif info['cvss_average'] >= 4 %}
+                                        medium
+                                    {% else %}
+                                        low
+                                    {% endif %}
+                                </strong>
+                            </td>                    
+                        </tr>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <em>No vulnerabilities found for any host.</em>
+                {% endif %} 
             </table>
             {% for ip, info in hosts.items() %}   
                 <table class="host-table">
@@ -570,9 +626,11 @@
         {% endif %}
     </div>
 
+    <!--
     <div class="section" id="conclusion">
         <h1>Conclusion</h1>
     </div>
+    -->
 
 </body>
 </html>

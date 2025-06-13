@@ -31,6 +31,7 @@ def get_groomed_shodan_info(raw: dict):
         Exception: For any other unexpected errors during the CVE request.
     """
     groomed_info = dict()
+
     # Exposed ports
     general_info_as_is = ["asn", "isp", "city", "country_name"]
     for field in general_info_as_is:
@@ -71,15 +72,18 @@ def get_groomed_shodan_info(raw: dict):
     
     # CVEs section
     new_vulns = list()
+    total_vulns = 0
 
     if "vulns" not in raw:
         log.info("No CVEs found in the host information.")
+        groomed_info["total_vulns"] = 0
         return groomed_info
     
     vulns = raw["vulns"]
     total_cvss = 0.0
 
     for cve in vulns:
+        total_vulns += 1
         to_add = dict()
         try:
             response = http.get(f"https://cvedb.shodan.io/cve/{cve}")
@@ -94,7 +98,6 @@ def get_groomed_shodan_info(raw: dict):
 
             total_cvss += cvss
 
-
             new_vulns.append(to_add)
 
             # Sort the vulnerabilities by CVSS score in descending order
@@ -107,6 +110,7 @@ def get_groomed_shodan_info(raw: dict):
             log.error(f"Unexpected error while performing CVE request: {e}")
 
     groomed_info["vulns"] = new_vulns
+    groomed_info["total_vulns"] = len(new_vulns)
 
     if total_cvss > 0:
         cvss_average = total_cvss / len(new_vulns) if new_vulns else 0.0
