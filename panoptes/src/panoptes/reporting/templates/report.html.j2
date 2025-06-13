@@ -260,9 +260,9 @@
             {% if ssl_check['Location'] %}
                 <!-- If ssl_check['Location'] is specifically a list, join by the comma, else it is a string -->
                 {% if ssl_check['Location'] is string %}
-                    <strong>Location:</strong> <code>{{ ssl_check['Location']|join(', ') }}</code><br>
+                    <strong>Location:</strong> <code>{{ ssl_check['Location'] }}</code><br>     
                 {% else  %}
-                    <strong>Location:</strong> <code>{{ ssl_check['Location'] }}</code><br>
+                    <strong>Location:</strong> <code>{{ ssl_check['Location']|join(', ') }}</code><br>
                 {% endif %}
             {% endif %}
 
