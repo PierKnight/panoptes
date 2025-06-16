@@ -22,6 +22,17 @@ _DEFAULTS = {
         "dnsdumpster": "",
         "mxtoolbox": "",
     },
+    "services": {
+        "dns-lookup": "Gather DNS records for the domain (via DNSDumpster)",
+        "spf-dmarc": "Check SPF and DMARC records (internal logic + MXToolbox)",
+        "ssl-check": "Validate SSL certificate chain and info (via SSLShopper)",
+        "tech-stack": "Analyze web technologies used by the domain (Wappalyzer)",
+        "http-headers": "Check missing HTTP security headers (internal logic)",
+        "subdomains": "Enumerate subdomains (using IntelX, VirusTotal, C99)",
+        "exposed-ports-cve": "Find open ports and CVEs (Shodan + CVE database); needs subdomains",
+        "compromised-hosts": "Check if hosts are blacklisted/abused (AbuseIPDB)",
+        "compromised-credentials": "Find leaked credentials (IntelX + Have I Been Pwned)"
+    }
 }
 
 def load() -> dict:

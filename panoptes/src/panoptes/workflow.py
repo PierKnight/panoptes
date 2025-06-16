@@ -16,8 +16,6 @@ from panoptes.utils import logging
 from panoptes.utils.misc import *
 from panoptes import reporting
 
-import yaspin
-
 from rich.console import Console
 from rich.progress import track
 
@@ -65,50 +63,80 @@ INTELX_BUCKETS = [
     "documents.public.scihub"
 ]
 
+SERVICE_WORKFLOW = {
+    "dns-lookup": ["dnsdumpster"],
+    "spf-dmarc": ["mxtoolbox"],
+    "ssl-check": ["sslshopper"],
+    "tech-stack": ["wappalyzer"],
+    "http-headers": ["httpsecurityheaders"],
+    "subdomains": ["subdomains"],
+    "exposed-ports-cve": ["shodan"],
+    "compromised-hosts": ["abuseipdb"],
+    "compromised-credentials": ["intelx", "haveibeenpwned"]
+}
 
-def run_collect(cfg: Dict[str, Any], domain: str, mail_domain: str | None) -> None:
-    """
-    Main pipeline for running all OSINT services on a domain.
-    This orchestrates the complete recon workflow: workspace creation,
-    client instantiation, all scans, data aggregation, and result storage.
-    """
+def get_workflow_steps(services_to_run):
+    if services_to_run is None:
+        return {s for steps in SERVICE_WORKFLOW.values() for s in steps}
+    steps = set()
+    for service in services_to_run:
+        steps.update(SERVICE_WORKFLOW.get(service, []))
+    return steps
+
+
+def run_collect(cfg: dict, domain: str, mail_domain: str | None, services_to_run: set[str] | None = None):
     started = datetime.now()
-    mail_domain = mail_domain or domain  # fallback if not provided
+    mail_domain = mail_domain or domain
 
-    # -- Setup workspace and API clients -----------------------------------------
     ws = setup_workspace(cfg, domain)
     clients = instantiate_clients(cfg)
     website_url = determine_website_url(domain)
 
     print_startup(domain, started, ws, website_url, mail_domain)
 
-    # -- Per-service data collection ---------------------------------------------
-    run_wappalyzer(ws, website_url)
-    run_mxtoolbox(ws, domain, clients.get("mxtoolbox"))
-    run_dnsdumpster(ws, domain, clients.get("dnsdumpster"))
-    run_httpsecurityheaders(ws, website_url, clients.get("httpsecurityheaders"))
-    run_sslshopper(ws, website_url, clients.get("sslshopper"))
+    # Figure out which internal steps to run
+    steps_to_run = get_workflow_steps(services_to_run)
 
-    # -- Subdomain enumeration and associated lookups ---------------------------
-    subdomains = get_subdomains(domain, clients)
-    save_subdomains(ws, subdomains)
+    # Now, for each step, check if it's requested before running its function
+    if "wappalyzer" in steps_to_run:
+        run_wappalyzer(ws, website_url)
+    if "mxtoolbox" in steps_to_run:
+        run_mxtoolbox(ws, domain, clients.get("mxtoolbox"))
+    if "dnsdumpster" in steps_to_run:
+        run_dnsdumpster(ws, domain, clients.get("dnsdumpster"))
+    if "httpsecurityheaders" in steps_to_run:
+        run_httpsecurityheaders(ws, website_url, clients.get("httpsecurityheaders"))
+    if "sslshopper" in steps_to_run:
+        run_sslshopper(ws, website_url, clients.get("sslshopper"))
 
+    # Subdomains block
+    subdomains = []
+    if "subdomains" in steps_to_run or "shodan" in steps_to_run or "abuseipdb" in steps_to_run:
+        subdomains = get_subdomains(domain, clients)
+        if "subdomains" in steps_to_run:
+            save_subdomains(ws, subdomains)
+
+    # IP-based steps
+    ips = []
     if subdomains:
-        # Get IPs of subdomains and aggregate them for further enrichment
         subdomain_ips = get_ips_from_subdomains(ws, subdomains)
         ips = aggregate_values_from_dict_with_no_duplicates(subdomain_ips)
-        run_abuseipdb(ws, ips, clients.get("abuseipdb"))
-        run_shodan(ws, ips, clients.get("shodan"))
+        if "abuseipdb" in steps_to_run:
+            run_abuseipdb(ws, ips, clients.get("abuseipdb"))
+        if "shodan" in steps_to_run:
+            run_shodan(ws, ips, clients.get("shodan"))
 
-    # -- Leaked credential and breach checks ------------------------------------
-    credentials_path = run_intelx(ws, cfg, mail_domain, clients.get("intelx"))
-    run_haveibeenpwned(ws, credentials_path, cfg, clients.get("haveibeenpwned"))
+    # Credentials/breaches steps
+    credentials_path = None
+    if "intelx" in steps_to_run:
+        credentials_path = run_intelx(ws, cfg, mail_domain, clients.get("intelx"))
+    if "haveibeenpwned" in steps_to_run and credentials_path:
+        run_haveibeenpwned(ws, credentials_path, cfg, clients.get("haveibeenpwned"))
 
-    # -- Cleanup ----------------------------------------------------------------
     ws.cleanup_empty_dirs()
     log.info("Investigation finished in %.1fs", (datetime.now() - started).total_seconds())
 
-def run_report(cfg: Dict[str, Any], domain: str) -> None:
+def run_report(cfg: Dict[str, Any], domain: str, incremental: bool) -> None:
     """ Generates HTML and PDF reports for the completed investigation.
 
     Args:
@@ -116,7 +144,7 @@ def run_report(cfg: Dict[str, Any], domain: str) -> None:
         domain: Web-site to analyse, e.g. "example.com".
     """
     ws_path = cfg["base_dir"] / domain
-    html, pdf = reporting.generate.generate_report(ws_path)
+    html, pdf = reporting.generate.generate_report(ws_path, incremental)
     log.info("HTML written to %s", html)
     log.info("PDF written to %s", pdf)
 
@@ -389,14 +417,14 @@ def run_haveibeenpwned(ws, credentials_path, cfg, haveibeenpwned):
     """
     if not haveibeenpwned or not credentials_path or not os.path.exists(credentials_path):
         return
-    with console.status("[bold green]Running Data Breaches Retrieval...[/bold green]"):
-        breached_emails = get_breached_emails(str(credentials_path))
-        emails_breaches = dict()
-        for email in track(breached_emails, description="Checking breaches for emails..."):
-            breaches = haveibeenpwned.get_breaches_from_account(email, False)
-            emails_breaches[email] = breaches
-            # Respect rate-limiting requirements
-            time.sleep(cfg["haveibeenpwned_request_delay_in_seconds"])
-        save_json(ws, "haveibeenpwned", "breaches.json", emails_breaches)
-        console.print(f"Data breaches saved to [bold blue]{ws.file('haveibeenpwned', 'breaches.json')}[/bold blue]")
+   
+    breached_emails = get_breached_emails(str(credentials_path))
+    emails_breaches = dict()
+    for email in track(breached_emails, description="Checking breaches for emails..."):
+        breaches = haveibeenpwned.get_breaches_from_account(email, False)
+        emails_breaches[email] = breaches
+        # Respect rate-limiting requirements
+        time.sleep(cfg["haveibeenpwned_request_delay_in_seconds"])
+    save_json(ws, "haveibeenpwned", "breaches.json", emails_breaches)
+    console.print(f"Data breaches saved to [bold blue]{ws.file('haveibeenpwned', 'breaches.json')}[/bold blue]")
 

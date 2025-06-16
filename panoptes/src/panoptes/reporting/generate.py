@@ -6,6 +6,7 @@ from .pdf import html_to_pdf, markdown_to_pdf_via_html
 import datetime
 from typeguard import typechecked
 from rich.console import Console
+from panoptes.utils.misc import get_diff_json 
 
 console = Console()
 
@@ -34,20 +35,35 @@ def write_report_json(ws: Path) -> Path:
 
 
 @typechecked
-def generate_report(ws: Path) -> tuple[Path, Path]:
+def generate_report(ws: Path, incremental: bool) -> tuple[Path, Path]:
     json_path = write_report_json(ws)
     TEMPLATE_ENV.globals["ws"] = ws  # make 'ws' available in the template
     
+    current_json = json.loads(json_path.read_text())
+    if incremental:
+        # If incremental, get the diff from the previous report
+        prev_json_path = ws / "report.prev.json"
+        if prev_json_path.exists():
+            # Do the diff logic here
+            previous_json = json.loads(prev_json_path.read_text())
+            current_json = get_diff_json(previous_json, current_json, always_add=["domain"])
+            diff_path = ws / "report.diff.json"
+            diff_path.write_text(json.dumps(current_json, indent=2))
+        else:
+            console.log("No previous report found for incremental mode, using current data only.")
+
+
     with console.status("Rendering HTML from template..."):   
         # markdown = TEMPLATE.render(**json.loads(json_path.read_text()))
-        html = TEMPLATE.render(**json.loads(json_path.read_text()))
+        html = TEMPLATE.render(current_json)
     
+    domain = ws.name.split(".")[-2]  # Extract domain from workspace name
+
     ### Write rendered template to file
     ws.mkdir(parents=True, exist_ok=True)
-    html_path = ws / "osint-report.html"
+    html_path = ws / ("osint-report-" + domain + ".html")
     html_path.write_text(html)
 
-    domain = ws.name.split(".")[-2]  # Extract domain from workspace name
 
     pdf_path = ws / ("osint-report-" + domain + ".pdf")
     

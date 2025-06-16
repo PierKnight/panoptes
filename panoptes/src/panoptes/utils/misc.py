@@ -25,6 +25,9 @@ from tqdm import tqdm
 
 import click
 
+from typing import Any
+
+
 @typechecked
 def image_to_base64(image_path: str) -> str:
     """
@@ -373,3 +376,35 @@ def get_folder_size(folder_path: str) -> int:
             if not os.path.islink(fp):
                 total_size += os.path.getsize(fp)
     return total_size
+
+
+@typechecked
+def get_diff_json(new: Any, old: Any, *, always_add: list[str]) -> dict | None:
+    # If new and old are both dicts, descend
+    if isinstance(new, dict) and isinstance(old, dict):
+        out = {}
+        # Always add keys from always_add (from the top-level new)
+        for to_add in always_add:
+            if to_add in new:
+                out[to_add] = new[to_add]
+        # For all keys in new, compare or recurse
+        for k, v in new.items():
+            if k in old:
+                diff = get_diff_json(v, old[k], always_add=[])  # only always_add at top-level
+                if diff not in [None, {}, [], ""]:
+                    out[k] = diff
+            else:
+                out[k] = v  # Key only in new
+        return out or None
+    # If both are lists, compare by value
+    elif isinstance(new, list) and isinstance(old, list):
+        if new != old:
+            return new
+        else:
+            return None
+    # Any other types: only return if different
+    else:
+        if new != old:
+            return new
+        else:
+            return None
