@@ -7,7 +7,7 @@ from ..utils.misc import get_field_name_from_service_dir_name, image_to_base64
 
 from panoptes.utils import logging
 
-logger = logging.get(__name__)
+log = logging.get(__name__)
 
 PKG_VERSION = metadata.version("panoptes")
 
@@ -61,4 +61,8 @@ def build(workspace: Path) -> dict:
             elif service_dir.name == "sslshopper":
                 for image_file in service_dir.glob("*.png"):
                     ctx["images"]["ssl_check"] = image_to_base64(str(image_file))
+    
+    # Delete empty fields
+    ctx = {k: v for k, v in ctx.items() if v not in [None, {}, ""]}
+
     return ctx

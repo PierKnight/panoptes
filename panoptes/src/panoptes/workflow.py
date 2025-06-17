@@ -13,11 +13,12 @@ from panoptes.persistence.paths import Workspace
 from panoptes.ingestion import get_client
 from panoptes.processing import grooming
 from panoptes.utils import logging
+from panoptes.utils.console import console
 from panoptes.utils.misc import *
 from panoptes import reporting
 
 from rich.console import Console
-from rich.progress import track
+from rich.progress import track, Progress
 
 import os
 
@@ -30,7 +31,6 @@ import shutil
 import time
 
 log = logging.get(__name__)
-console = Console()
 
 
 DEFAULT_SERVICES = [
@@ -75,6 +75,14 @@ SERVICE_WORKFLOW = {
     "compromised-credentials": ["intelx", "haveibeenpwned"]
 }
 
+def print_rule(message: str, style: str = "bold red"):
+    """
+    Prints a rule with the given message to the console prepended with a newline.
+    The style can be customized, default is "bold red".
+    """
+    console.print("\n")
+    console.rule(message, style=style)
+
 def get_workflow_steps(services_to_run):
     if services_to_run is None:
         return {s for steps in SERVICE_WORKFLOW.values() for s in steps}
@@ -99,19 +107,25 @@ def run_collect(cfg: dict, domain: str, mail_domain: str | None, services_to_run
 
     # Now, for each step, check if it's requested before running its function
     if "wappalyzer" in steps_to_run:
+        print_rule("[bold green]Web App Technology Fingerprinting[/bold green]")
         run_wappalyzer(ws, website_url)
     if "mxtoolbox" in steps_to_run:
+        print_rule("[bold green]DMARC & SPF Records Lookup[/bold green]")
         run_mxtoolbox(ws, domain, clients.get("mxtoolbox"))
     if "dnsdumpster" in steps_to_run:
+        print_rule("[bold green]DNS Records Lookup[/bold green]")
         run_dnsdumpster(ws, domain, clients.get("dnsdumpster"))
     if "httpsecurityheaders" in steps_to_run:
+        print_rule("[bold green]HTTP Security Headers Analysis[/bold green]")
         run_httpsecurityheaders(ws, website_url, clients.get("httpsecurityheaders"))
     if "sslshopper" in steps_to_run:
+        print_rule("[bold green]SSL Certificate Analysis[/bold green]")
         run_sslshopper(ws, website_url, clients.get("sslshopper"))
 
     # Subdomains block
     subdomains = []
     if "subdomains" in steps_to_run or "shodan" in steps_to_run or "abuseipdb" in steps_to_run:
+        print_rule("[bold green]Subdomains and IPs Discovery[/bold green]")
         subdomains = get_subdomains(domain, clients)
         if "subdomains" in steps_to_run:
             save_subdomains(ws, subdomains)
@@ -129,6 +143,7 @@ def run_collect(cfg: dict, domain: str, mail_domain: str | None, services_to_run
     # Credentials/breaches steps
     credentials_path = None
     if "intelx" in steps_to_run:
+        print_rule("[bold green]Leaked Credentials Discovery[/bold green]")
         credentials_path = run_intelx(ws, cfg, mail_domain, clients.get("intelx"))
     if "haveibeenpwned" in steps_to_run and credentials_path:
         run_haveibeenpwned(ws, credentials_path, cfg, clients.get("haveibeenpwned"))
@@ -136,7 +151,7 @@ def run_collect(cfg: dict, domain: str, mail_domain: str | None, services_to_run
     ws.cleanup_empty_dirs()
     log.info("Investigation finished in %.1fs", (datetime.now() - started).total_seconds())
 
-def run_report(cfg: Dict[str, Any], domain: str, incremental: bool) -> None:
+def run_report(cfg: Dict[str, Any], domain: str, incremental: bool, language: str, export_from_html: bool) -> None:
     """ Generates HTML and PDF reports for the completed investigation.
 
     Args:
@@ -144,7 +159,10 @@ def run_report(cfg: Dict[str, Any], domain: str, incremental: bool) -> None:
         domain: Web-site to analyse, e.g. "example.com".
     """
     ws_path = cfg["base_dir"] / domain
-    html, pdf = reporting.generate.generate_report(ws_path, incremental)
+    if incremental and export_from_html:
+        log.warning("Incremental mode is not compatible with HTML export. Ignoring incremental flag.")
+        incremental = False
+    html, pdf = reporting.generate.generate_report(ws_path, incremental, language, export_from_html)
     log.info("HTML written to %s", html)
     log.info("PDF written to %s", pdf)
 
@@ -332,25 +350,35 @@ def run_abuseipdb(ws, ips, abuseipdb):
             log.info("No abuse reports found for the given IPs in AbuseIPDB")
             console.print("[bold yellow]No abuse reports found for the given IPs in AbuseIPDB[/bold yellow]")
 
+
 def run_shodan(ws, ips, shodan):
-    """
-    Performs Shodan lookups for each IP, aggregates their info, and sorts by CVSS rating.
-    """
+    from logging import getLogger
+    log = getLogger(__name__)
+
     if not shodan:
         return
     ips_info = {}
-    # Use a progress bar for long IP lists
-    for ip in track(ips, description="Retrieving hosts info..."):
-        try:
-            result = shodan.host(ip)
-            if result:
-                groomed = grooming.get_groomed_shodan_info(result)
-                ips_info[ip] = groomed
-        except Exception as e:
-            log.error("Shodan failed for %s: %s", ip, e, exc_info=True)
+
+    with Progress(console=console) as progress:
+        task = progress.add_task("Retrieving hosts info...", total=len(ips))
+
+        for ip in ips:
+            try:
+                result = shodan.host(ip)
+                if result:
+                    groomed = grooming.get_groomed_shodan_info(result)
+                    ips_info[ip] = groomed
+            except Exception as e:
+                # Use console.log(), which *is* progress-aware
+                console.log(f"[red]Shodan failed for {ip}: {e}[/]", exc_info=True)
+            progress.update(task, advance=1)
+
     if ips_info:
-        # Order by CVSS average if available
-        ips_info = dict(sorted(ips_info.items(), key=lambda item: item[1].get("cvss_average", 0), reverse=True))
+        ips_info = dict(sorted(
+            ips_info.items(),
+            key=lambda item: item[1].get("cvss_average", 0),
+            reverse=True
+        ))
         save_json(ws, "shodan", "shodan_info.json", ips_info)
 
 def run_intelx(ws, cfg, mail_domain, intelx):
@@ -366,7 +394,7 @@ def run_intelx(ws, cfg, mail_domain, intelx):
     # Try most relevant first, then (iff export limit is reached) less relevant (sort order impacts result relevance)
     for sort in (2, 1):
         with console.status("[bold green]Running Leaked Credentials Retrieval...[/bold green]"):
-            intelligent_search_id = intelx.intelligent_search(term=mail_domain, media=24, sort=sort)
+            intelligent_search_id = intelx.intelligent_search(term=mail_domain, media=0, sort=sort)
         if intelligent_search_id:
             filetype = "zip"
             intelx_breach_files = ws.file("intelx", "breach_files")
@@ -410,21 +438,43 @@ def run_intelx(ws, cfg, mail_domain, intelx):
     console.print(f"Leaked credentials saved to [bold blue]{credentials_path}[/bold blue]")
     return credentials_path
 
+from rich.progress import Progress
+
 def run_haveibeenpwned(ws, credentials_path, cfg, haveibeenpwned):
     """
     Cross-checks found email addresses against the HaveIBeenPwned API to aggregate breach history.
     Observes the necessary request delay as demanded by API terms.
     """
-    if not haveibeenpwned or not credentials_path or not os.path.exists(credentials_path):
+    if (
+        not haveibeenpwned
+        or not credentials_path
+        or not os.path.exists(credentials_path)
+    ):
         return
-   
+
     breached_emails = get_breached_emails(str(credentials_path))
     emails_breaches = dict()
-    for email in track(breached_emails, description="Checking breaches for emails..."):
-        breaches = haveibeenpwned.get_breaches_from_account(email, False)
-        emails_breaches[email] = breaches
-        # Respect rate-limiting requirements
-        time.sleep(cfg["haveibeenpwned_request_delay_in_seconds"])
+    errors = []
+
+    with Progress(console=console) as progress:
+        task = progress.add_task("Checking breaches for emails...", total=len(breached_emails))
+        for email in breached_emails:
+            try:
+                breaches = haveibeenpwned.get_breaches_from_account(email, False)
+                emails_breaches[email] = breaches
+            except Exception as e:
+                # Properly logs error without breaking the progress bar
+                console.log(f"[red]Error checking breaches for {email}: {e}[/]")
+                errors.append((email, str(e)))
+            progress.update(task, advance=1)
+            # Respect rate-limiting requirements
+            time.sleep(cfg["haveibeenpwned_request_delay_in_seconds"])
+
     save_json(ws, "haveibeenpwned", "breaches.json", emails_breaches)
     console.print(f"Data breaches saved to [bold blue]{ws.file('haveibeenpwned', 'breaches.json')}[/bold blue]")
+
+    if errors:
+        console.print("[yellow]There were errors with the following emails:[/yellow]")
+        for email, err in errors:
+            console.print(f"[red]- {email}: {err}[/red]")
 
