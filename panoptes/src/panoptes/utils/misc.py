@@ -379,7 +379,7 @@ def get_folder_size(folder_path: str) -> int:
 
 
 @typechecked
-def get_diff_json(new: Any, old: Any, *, always_add: list[str]) -> dict | None:
+def get_diff_json(new: Any, old: Any, *, always_add: list[str]):
     # If new and old are both dicts, descend
     if isinstance(new, dict) and isinstance(old, dict):
         out = {}

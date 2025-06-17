@@ -2,17 +2,15 @@ import click, logging
 from panoptes import config, workflow, utils
 
 from pathlib import Path
-from rich.console import Console
-
-console = Console()
+from panoptes.utils.console import console
 
 @click.group()
 @click.option("-v", "--verbose", is_flag=True)
 def cli(verbose):
-    logging_level = "DEBUG" if verbose else "ERROR"
-    utils.logging.init_logger(logging_level)
     print_banner()
-
+    logging_level = "INFO" if verbose else "WARNING"
+    utils.logging.init_logger(logging_level)
+    
 
 def print_banner():
     banner = \
@@ -37,7 +35,7 @@ def print_banner():
 @click.option("--mail-domain")
 @click.option(
     "--filter", "-f", 
-    help="Comma-separated list of services to run, e.g. wappalyzer,shodan. If omitted, run all. To get the list of available services, run 'panoptes services'.",
+    help="Comma-separated list of services to run. If omitted, run all. To get the list of available services, run 'panoptes services'.",
 )
 def collect(domain, mail_domain, filter):
     """Collect data for DOMAIN and optionally MAIL_DOMAIN."""
@@ -53,11 +51,27 @@ def collect(domain, mail_domain, filter):
     "--incremental",
     is_flag=True,
     help="Run the report in incremental mode, only processing new data since the last run.",
+    default=False,
+    show_default=True,
 )
-def report(domain, incremental):
+@click.option(
+    "--language",
+    help="Language for the report, If not specified, defaults to English (en). Other available language is Italian (it).",
+    default="en",
+    show_default=True,
+    type=click.Choice(["en", "it"], case_sensitive=False),
+)
+@click.option(
+    "--export-from-html",
+    is_flag=True,
+    help="Export the report to PDF from the HTML file. Useful if you want to update the HTML manually and then generate the PDF.",
+    default=False,
+    show_default=True,
+)
+def report(domain, incremental, language, export_from_html):
     """Generate a report (HTML and its PDF export) for the collected data in DOMAIN."""
     cfg = config.load()
-    workflow.run_report(cfg, domain, incremental)
+    workflow.run_report(cfg, domain, incremental, language, export_from_html)
     
 
 @cli.command()
@@ -69,9 +83,8 @@ def services():
     if not services:
         console.print("No services available.", style="bold red")
         return
-    click.echo("Available services:")
+    console.print("Available services:")
     for service in sorted(services.keys()):
-        # bold service name, italic description
         console.print(f"\t- [bold blue]{service}[/bold blue]: [italic]{services[service]}[/italic]")
 
 if __name__ == "__main__":
