@@ -112,7 +112,7 @@ def get_website_url(domain: str) -> str:
             url=website_url,
             timeout=3
         )
-    except http.Timeout as e:
+    except Exception as e:
         website_url = f"https://www.{domain.strip()}"
     return website_url
 

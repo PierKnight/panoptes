@@ -7,11 +7,13 @@ from ..utils.misc import get_field_name_from_service_dir_name, image_to_base64
 
 from panoptes.utils import logging
 
+from panoptes.ingestion.imgbb import ImgBB
+
 log = logging.get(__name__)
 
 PKG_VERSION = metadata.version("panoptes")
 
-def build(workspace: Path) -> dict:
+def build(workspace: Path, **kwargs) -> dict:
     # Note: if a key is changed here, it must also be changed in the get_field_name_from_service_dir_name function
     ctx = {
         "domain": workspace.name,
@@ -20,8 +22,8 @@ def build(workspace: Path) -> dict:
             ["git", "rev-parse", "--short", "HEAD"], text=True
         ).strip(),
         "header_analysis": {},      # Custom-made
-        "dmarc": {},                # MXToolbox
-        "spf": {},                  # MXToolbox
+        "dmarc": [],                # MXToolbox
+        "spf": [],                  # MXToolbox
         "dns_records": {},          # DNSDumpster
         "ssl_check": {},            # SSLShopper
         "tech_stack": {},           # Wappalyzer
@@ -42,10 +44,10 @@ def build(workspace: Path) -> dict:
                 if file:
                     if field_name == "mxtoolbox":
                         # Special case for MXToolbox, which has multiple fields
-                        if file.name == "dmarc.json":
-                            ctx["dmarc"] = json.loads(file.read_text())
-                        elif file.name == "spf.json":
-                            ctx["spf"] = json.loads(file.read_text())
+                        if file.name.startswith("dmarc") and file.name.endswith(".json"):
+                            ctx["dmarc"].append(json.loads(file.read_text()))
+                        if file.name.startswith("spf") and file.name.endswith(".json"):
+                            ctx["spf"].append(json.loads(file.read_text()))
                         continue
 
                 ctx[field_name] = json.loads(file.read_text())
@@ -57,7 +59,12 @@ def build(workspace: Path) -> dict:
                         image_field_name = "dmarc"
                     elif image_file.name.startswith("spf"):
                         image_field_name = "spf"
-                    ctx["images"][image_field_name] = image_to_base64(str(image_file))
+                    imgbb_api_key = kwargs.get("imgbb_api_key", None)
+                    if not imgbb_api_key:
+                        log.warning("No ImgBB API key provided, skipping image upload.")
+                        continue
+                    image_url = ImgBB(imgbb_api_key).upload_image(str(image_file), name=image_file.name)
+                    ctx["images"][image_field_name] = image_url
             elif service_dir.name == "sslshopper":
                 for image_file in service_dir.glob("*.png"):
                     ctx["images"]["ssl_check"] = image_to_base64(str(image_file))

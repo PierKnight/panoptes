@@ -7,7 +7,8 @@ Called by the CLI:
 
 from pathlib import Path
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Set, Tuple
+from typeguard import typechecked
 
 from panoptes.persistence.paths import Workspace
 from panoptes.ingestion import get_client
@@ -32,11 +33,9 @@ import time
 
 log = logging.get(__name__)
 
-
-DEFAULT_SERVICES = [
+DEFAULT_COLLECT_SERVICES = [
     "intelx",
     "shodan",
-    "wappalyzer",
     "mxtoolbox",
     "dnsdumpster",
     "httpsecurityheaders",
@@ -45,6 +44,15 @@ DEFAULT_SERVICES = [
     "abuseipdb",
     "virustotal",
     # add/remove as you wire them
+]
+
+# Unused but kept for future reference
+DEFAULT_REPORT_SERVICES = [
+    "imgbb"
+]
+
+WORKSPACE_ONLY_SERVICES = [
+    "wappalyzer",  # Wappalyzer is not a client, but a library
 ]
 
 # If you decide one day to use filtering on buckets, you can use this list.
@@ -75,7 +83,8 @@ SERVICE_WORKFLOW = {
     "compromised-credentials": ["intelx", "haveibeenpwned"]
 }
 
-def print_rule(message: str, style: str = "bold red"):
+@typechecked
+def print_rule(message: str, style: str = "bold red") -> None:
     """
     Prints a rule with the given message to the console prepended with a newline.
     The style can be customized, default is "bold red".
@@ -83,7 +92,8 @@ def print_rule(message: str, style: str = "bold red"):
     console.print("\n")
     console.rule(message, style=style)
 
-def get_workflow_steps(services_to_run):
+@typechecked
+def get_workflow_steps(services_to_run: Optional[List[str]]) -> Set[str]:
     if services_to_run is None:
         return {s for steps in SERVICE_WORKFLOW.values() for s in steps}
     steps = set()
@@ -92,18 +102,21 @@ def get_workflow_steps(services_to_run):
     return steps
 
 
-def run_collect(cfg: dict, domain: str, mail_domain: str | None, services_to_run: set[str] | None = None):
+@typechecked
+def run_collect(cfg: Dict[str, Any], domains: tuple, mail_domain: Optional[str], services_to_run: Optional[Set[str]] = None, website_url: str = "") -> None:
     started = datetime.now()
-    mail_domain = mail_domain or domain
+    mail_domain = mail_domain or domains[0]
 
-    ws = setup_workspace(cfg, domain)
-    clients = instantiate_clients(cfg)
-    website_url = determine_website_url(domain)
+    ws = setup_workspace(cfg, domains[0])
+    clients = instantiate_clients(cfg, DEFAULT_COLLECT_SERVICES)
 
-    print_startup(domain, started, ws, website_url, mail_domain)
+    if website_url == "":
+        website_url = determine_website_url(domains[0])
+
+    print_startup(domains[0], started, ws, website_url, mail_domain)
 
     # Figure out which internal steps to run
-    steps_to_run = get_workflow_steps(services_to_run)
+    steps_to_run = get_workflow_steps(list(services_to_run) if services_to_run else None)
 
     # Now, for each step, check if it's requested before running its function
     if "wappalyzer" in steps_to_run:
@@ -111,10 +124,10 @@ def run_collect(cfg: dict, domain: str, mail_domain: str | None, services_to_run
         run_wappalyzer(ws, website_url)
     if "mxtoolbox" in steps_to_run:
         print_rule("[bold green]DMARC & SPF Records Lookup[/bold green]")
-        run_mxtoolbox(ws, domain, clients.get("mxtoolbox"))
+        run_mxtoolbox(ws, domains, clients.get("mxtoolbox"))
     if "dnsdumpster" in steps_to_run:
         print_rule("[bold green]DNS Records Lookup[/bold green]")
-        run_dnsdumpster(ws, domain, clients.get("dnsdumpster"))
+        run_dnsdumpster(ws, domains, clients.get("dnsdumpster"))
     if "httpsecurityheaders" in steps_to_run:
         print_rule("[bold green]HTTP Security Headers Analysis[/bold green]")
         run_httpsecurityheaders(ws, website_url, clients.get("httpsecurityheaders"))
@@ -126,7 +139,7 @@ def run_collect(cfg: dict, domain: str, mail_domain: str | None, services_to_run
     subdomains = []
     if "subdomains" in steps_to_run or "shodan" in steps_to_run or "abuseipdb" in steps_to_run:
         print_rule("[bold green]Subdomains and IPs Discovery[/bold green]")
-        subdomains = get_subdomains(domain, clients)
+        subdomains = get_subdomains(domains, clients)
         if "subdomains" in steps_to_run:
             save_subdomains(ws, subdomains)
 
@@ -151,6 +164,7 @@ def run_collect(cfg: dict, domain: str, mail_domain: str | None, services_to_run
     ws.cleanup_empty_dirs()
     log.info("Investigation finished in %.1fs", (datetime.now() - started).total_seconds())
 
+@typechecked
 def run_report(cfg: Dict[str, Any], domain: str, incremental: bool, language: str, export_from_html: bool) -> None:
     """ Generates HTML and PDF reports for the completed investigation.
 
@@ -159,28 +173,33 @@ def run_report(cfg: Dict[str, Any], domain: str, incremental: bool, language: st
         domain: Web-site to analyse, e.g. "example.com".
     """
     ws_path = cfg["base_dir"] / domain
+    
+    imgbb_api_key = cfg["api_keys"].get("imgbb")
+
     if incremental and export_from_html:
         log.warning("Incremental mode is not compatible with HTML export. Ignoring incremental flag.")
         incremental = False
-    html, pdf = reporting.generate.generate_report(ws_path, incremental, language, export_from_html)
+    html, pdf = reporting.generate.generate_report(ws_path, incremental, language, export_from_html, imgbb_api_key=imgbb_api_key)
     log.info("HTML written to %s", html)
     log.info("PDF written to %s", pdf)
 
 
-def setup_workspace(cfg, domain):
+@typechecked
+def setup_workspace(cfg: Dict[str, Any], domain: str) -> Workspace:
     """
     Sets up a Workspace object for filesystem organization, ensures working directory.
     """
-    ws = Workspace(cfg["base_dir"], domain, DEFAULT_SERVICES)
+    ws = Workspace(cfg["base_dir"], domain, DEFAULT_COLLECT_SERVICES + WORKSPACE_ONLY_SERVICES)
     console.print(f"Workspace created at [bold blue]{ws.root}[/bold blue]")
     return ws
 
-def instantiate_clients(cfg):
+@typechecked
+def instantiate_clients(cfg: Dict[str, Any], services: list[str]) -> Dict[str, Any]:
     """
     Instantiates client objects for each enabled OSINT service using provided API keys.
     """
     clients = {}
-    for name in DEFAULT_SERVICES:
+    for name in services:
         try:
             cls = get_client(name)
             key = cfg["api_keys"].get(name)
@@ -189,7 +208,8 @@ def instantiate_clients(cfg):
             log.error("Cannot create client %s: %s", name, exc)
     return clients
 
-def determine_website_url(domain):
+@typechecked
+def determine_website_url(domain: str) -> str:
     """
     Derives the correct website URL to use for fingerprinting (resolves edge cases).
     """
@@ -198,14 +218,16 @@ def determine_website_url(domain):
         console.print(f"Website URL determined: [bold blue]{website_url}[/bold blue]")
     return website_url
 
-def print_startup(domain, started, ws, website_url, mail_domain):
+@typechecked
+def print_startup(domain: str, started: datetime, ws: Workspace, website_url: str, mail_domain: str) -> None:
     """
     Prints summary of investigation start and context to the CLI.
     """
     console.print(f"Starting investigation for [bold blue]{domain}[/bold blue] at [bold green]{started.strftime('%Y-%m-%d %H:%M:%S')}[/bold green]")
     log.info("Mail domain is %s", mail_domain)
 
-def print_shutdown(domain, started):
+@typechecked
+def print_shutdown(domain: str, started: datetime) -> None:
     """
     Prints summary of investigation completion to the CLI.
     """
@@ -213,7 +235,8 @@ def print_shutdown(domain, started):
     console.print(f"Investigation for [bold blue]{domain}[/bold blue] completed in [bold green]{duration:.1f} seconds[/bold green]")
     log.info("Investigation for %s completed in %.1fs", domain, duration)
 
-def save_json(ws, section, filename, data):
+@typechecked
+def save_json(ws: Workspace, section: str, filename: str, data: Any) -> Path:
     """
     Utility: save a Python object as pretty-printed JSON in the workspace.
     """
@@ -221,7 +244,8 @@ def save_json(ws, section, filename, data):
     path.write_text(json.dumps(data, indent=2))
     return path
 
-def run_wappalyzer(ws, website_url):
+@typechecked
+def run_wappalyzer(ws: Workspace, website_url: str) -> None:
     """
     Runs web technology fingerprinting and saves the result.
     """
@@ -233,39 +257,44 @@ def run_wappalyzer(ws, website_url):
         path = save_json(ws, "wappalyzer", "results.json", results)
         console.print(f"Web App Technology fingerprinting results saved to [bold blue]{path}[/bold blue]")
 
-def run_mxtoolbox(ws, domain, mxtoolbox):
+@typechecked
+def run_mxtoolbox(ws: Workspace, domains: tuple, mxtoolbox: Optional[Any]) -> None:
     """
     Looks up SPF/DMARC records using MXToolbox and saves results (with images).
     """
     if not mxtoolbox:
         return
     with console.status("[bold green]Running DMARC & SPF records lookup...[/bold green]"):
-        spf_info = mxtoolbox.get_action_info_from_domain(domain=domain, action="spf")
-        dmarc_info = mxtoolbox.get_action_info_from_domain(domain=domain, action="dmarc")
-        # Groom ("clean up") the results structure
-        cs = grooming.get_groomed_mxtoolbox_lookup
-        save_json(ws, "mxtoolbox", "spf.json", cs(spf_info.get("spf_json", {})))
-        save_json(ws, "mxtoolbox", "dmarc.json", cs(dmarc_info.get("dmarc_json", {})))
+        for domain in domains:
+            spf_info = mxtoolbox.get_action_info_from_domain(domain=domain, action="spf")
+            dmarc_info = mxtoolbox.get_action_info_from_domain(domain=domain, action="dmarc")
+            # Groom ("clean up") the results structure
+            cs = grooming.get_groomed_mxtoolbox_lookup
+            save_json(ws, "mxtoolbox", f"spf-{domain}.json", cs(spf_info.get("spf_json", {})))
+            save_json(ws, "mxtoolbox", f"dmarc-{domain}.json", cs(dmarc_info.get("dmarc_json", {})))
 
-        # Save images if they exist in the response
-        if (spf_img := spf_info.get("spf_image")) is not None:
-            spf_img.save(ws.file("mxtoolbox", "spf.png"))
-        if (dmarc_img := dmarc_info.get("dmarc_image")) is not None:
-            dmarc_img.save(ws.file("mxtoolbox", "dmarc.png"))
+            # Save images if they exist in the response
+            if (spf_img := spf_info.get("spf_image")) is not None:
+                spf_img.save(ws.file("mxtoolbox", f"spf-{domain}.png"))
+            if (dmarc_img := dmarc_info.get("dmarc_image")) is not None:
+                dmarc_img.save(ws.file("mxtoolbox", f"dmarc-{domain}.png"))
 
-def run_dnsdumpster(ws, domain, dnsdumpster):
+@typechecked
+def run_dnsdumpster(ws: Workspace, domains: tuple, dnsdumpster: Optional[Any]) -> None:
     """
     Retrieves DNS records for the domain via DNSDumpster and saves them.
     """
     if not dnsdumpster:
         return
     with console.status("[bold green]Running DNS records lookup...[/bold green]"):
-        raw = dnsdumpster.get_dns_records_from_domain(domain)
-        clean = grooming.get_groomed_dnsdumpster_info(raw)
-        path = save_json(ws, "dnsdumpster", "dns_records.json", clean)
-        console.print(f"DNS records saved to [bold blue]{path}[/bold blue]")
+        for domain in domains:
+            raw = dnsdumpster.get_dns_records_from_domain(domain)
+            clean = grooming.get_groomed_dnsdumpster_info(raw)
+            path = save_json(ws, "dnsdumpster", f"dns_records-{domain}.json", clean)
+            console.print(f"DNS records saved to [bold blue]{path}[/bold blue]")
 
-def run_httpsecurityheaders(ws, website_url, client):
+@typechecked
+def run_httpsecurityheaders(ws: Workspace, website_url: str, client: Optional[Any]) -> None:
     """
     Analyzes missing HTTP security headers on the live web app (if supported by config).
     """
@@ -277,7 +306,8 @@ def run_httpsecurityheaders(ws, website_url, client):
             path = save_json(ws, "httpsecurityheaders", "missing_headers.json", missing)
             console.print(f"HTTP Security Headers results saved to [bold blue]{path}[/bold blue]")
 
-def run_sslshopper(ws, website_url, sslshopper):
+@typechecked
+def run_sslshopper(ws: Workspace, website_url: str, sslshopper: Optional[Any]) -> None:
     """
     Performs SSL certificate chain validation and persists certificate info and image.
     """
@@ -291,42 +321,46 @@ def run_sslshopper(ws, website_url, sslshopper):
             save_json(ws, "sslshopper", "certificate_info.json", info["certificate_json"])
             console.print(f"SSL Certificate Chain results saved to [bold blue]{ws.file('sslshopper', 'certificate_info.json')}[/bold blue]")
 
-def get_subdomains(domain, clients):
+@typechecked
+def get_subdomains(domains: tuple, clients: Dict[str, Any]) -> List[str]:
     """
     Fuses results from multiple sources (C99, VirusTotal, IntelX) to enumerate subdomains.
     """
     subdomains = set()
-    # -- C99 subdomains
-    if c99 := clients.get("c99"):
-        with console.status("[bold green]Running C99 subdomain finder...[/bold green]"):
-            subdomains.update(c99.subdomain_finder(domain))
-    # -- VirusTotal subdomains
-    if vt := clients.get("virustotal"):
-        with console.status("[bold green]Running VirusTotal subdomain finder...[/bold green]"):
-            subdomains.update(vt.get_subdomains_list(domain))
-    # -- IntelX subdomains
-    if intelx := clients.get("intelx"):
-        with console.status("[bold green]Running IntelX subdomain finder...[/bold green]"):
-            phonebook_result = []
-            phonebook_search_id = intelx.phonebook_search(term=domain, target=1)
-            if phonebook_search_id:
-                res = intelx.phonebook_search_result(search_id=phonebook_search_id, limit=1000)
-                if res and "selectors" in res:
-                    for entry in res["selectors"]:
-                        if "selectorvalue" in entry:
-                            phonebook_result.append(entry["selectorvalue"])
-            subdomains.update(phonebook_result)
+    for domain in domains:
+        # -- C99 subdomains
+        if c99 := clients.get("c99"):
+            with console.status("[bold green]Running C99 subdomain finder...[/bold green]"):
+                subdomains.update(c99.subdomain_finder(domain))
+        # -- VirusTotal subdomains
+        if vt := clients.get("virustotal"):
+            with console.status("[bold green]Running VirusTotal subdomain finder...[/bold green]"):
+                subdomains.update(vt.get_subdomains_list(domain))
+        # -- IntelX subdomains
+        if intelx := clients.get("intelx"):
+            with console.status("[bold green]Running IntelX subdomain finder...[/bold green]"):
+                phonebook_result = []
+                phonebook_search_id = intelx.phonebook_search(term=domain, target=1)
+                if phonebook_search_id:
+                    res = intelx.phonebook_search_result(search_id=phonebook_search_id, limit=1000)
+                    if res and "selectors" in res:
+                        for entry in res["selectors"]:
+                            if "selectorvalue" in entry:
+                                phonebook_result.append(entry["selectorvalue"])
+                subdomains.update(phonebook_result)
     # Output is alphabetically sorted for repeatability
     return sorted(subdomains)
 
-def save_subdomains(ws, subdomains):
+@typechecked
+def save_subdomains(ws: Workspace, subdomains: List[str]) -> None:
     """
     Stores the assembled list of discovered subdomains as a text file.
     """
     console.print(f"Subdomains found: [bold blue]{len(subdomains)}[/bold blue]")
     ws.file("subdomains", "subdomains_list.txt").write_text("\n".join(subdomains))
 
-def get_ips_from_subdomains(ws, subdomains):
+@typechecked
+def get_ips_from_subdomains(ws: Workspace, subdomains: List[str]) -> Dict[str, List[str]]:
     """
     For each subdomain, resolves associated IP addresses and persists as JSON.
     """
@@ -335,7 +369,8 @@ def get_ips_from_subdomains(ws, subdomains):
         ws.file("subdomains", "subdomains_ips.json").write_text(json.dumps(subdomains_ips, indent=2))
     return subdomains_ips
 
-def run_abuseipdb(ws, ips, abuseipdb):
+@typechecked
+def run_abuseipdb(ws: Workspace, ips: List[str], abuseipdb: Optional[Any]) -> None:
     """
     Gathers AbuseIPDB reports for the set of IPs and stores the findings.
     """
@@ -347,14 +382,11 @@ def run_abuseipdb(ws, ips, abuseipdb):
             save_json(ws, "abuseipdb", "abused_ips_reports.json", reports)
             console.print(f"AbuseIPDB reports saved to [bold blue]{ws.file('abuseipdb', 'abused_ips_reports.json')}[/bold blue]")
         else:
-            log.info("No abuse reports found for the given IPs in AbuseIPDB")
-            console.print("[bold yellow]No abuse reports found for the given IPs in AbuseIPDB[/bold yellow]")
+            log.warning("No abuse reports found for the given IPs in AbuseIPDB")
 
 
-def run_shodan(ws, ips, shodan):
-    from logging import getLogger
-    log = getLogger(__name__)
-
+@typechecked
+def run_shodan(ws: Workspace, ips: List[str], shodan: Optional[Any]) -> None:
     if not shodan:
         return
     ips_info = {}
@@ -381,7 +413,8 @@ def run_shodan(ws, ips, shodan):
         ))
         save_json(ws, "shodan", "shodan_info.json", ips_info)
 
-def run_intelx(ws, cfg, mail_domain, intelx):
+@typechecked
+def run_intelx(ws: Workspace, cfg: Dict[str, Any], mail_domain: str, intelx: Optional[Any]) -> Optional[Path]:
     """
     Uses IntelX to search for credential leaks for a mail domain, downloading and extracting data as ZIPs.
     Results are aggregated and stored as JSON.
@@ -440,7 +473,8 @@ def run_intelx(ws, cfg, mail_domain, intelx):
 
 from rich.progress import Progress
 
-def run_haveibeenpwned(ws, credentials_path, cfg, haveibeenpwned):
+@typechecked
+def run_haveibeenpwned(ws: Workspace, credentials_path: Path, cfg: Dict[str, Any], haveibeenpwned: Optional[Any]) -> None:
     """
     Cross-checks found email addresses against the HaveIBeenPwned API to aggregate breach history.
     Observes the necessary request delay as demanded by API terms.
@@ -477,4 +511,3 @@ def run_haveibeenpwned(ws, credentials_path, cfg, haveibeenpwned):
         console.print("[yellow]There were errors with the following emails:[/yellow]")
         for email, err in errors:
             console.print(f"[red]- {email}: {err}[/red]")
-

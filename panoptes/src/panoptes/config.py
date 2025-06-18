@@ -21,6 +21,7 @@ _DEFAULTS = {
         "abuseipdb": "",
         "dnsdumpster": "",
         "mxtoolbox": "",
+        "imgbb": ""
     },
     "services": {
         "dns-lookup": "Gather DNS records for the domain (via DNSDumpster)",
@@ -37,7 +38,7 @@ _DEFAULTS = {
 
 def load() -> dict:
     cfg = _DEFAULTS | {}               # shallow copy
-    yml_path = Path.home() / ".osintapp.yml"
+    yml_path = Path.home() / ".panoptes.yml"
     if yml_path.exists():
         cfg |= yaml.safe_load(yml_path.read_text()) or {}
 

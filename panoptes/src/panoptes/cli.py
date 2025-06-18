@@ -31,18 +31,49 @@ def print_banner():
     console.print(banner, style="bold blue", highlight=False)
 
 @cli.command()
-@click.argument("domain")
-@click.option("--mail-domain")
+@click.argument(
+    "domains",
+    nargs=-1,
+    required=True,
+    type=click.STRING,
+)
 @click.option(
     "--filter", "-f", 
     help="Comma-separated list of services to run. If omitted, run all. To get the list of available services, run 'panoptes services'.",
 )
-def collect(domain, mail_domain, filter):
-    """Collect data for DOMAIN and optionally MAIL_DOMAIN."""
+@click.option(
+    "--mail-domain", "-m",
+    help="Optional mail domain to collect data for. If not specified, the domain will be used as the mail domain.",
+)
+@click.option(
+    "--website-url", "-w",
+    help="Optional website URL. If not specified, https://<domain> will be used (or https://www.{domain} if the former is not reachable).",
+)
+def collect(domains, filter, mail_domain, website_url):
+    """
+    Collect data for the specified DOMAIN(s). If multiple domains are provided, they will be processed together.
+    DOMAIN can be a single domain or multiple domains separated by spaces.
+
+    If multiple domains are provided, workspace will be created with the name of the first domain. Info deduction (mail domain, website URL) will be also based on the first domain.
+    """
     cfg = config.load()
     # Parse services from option (normalize to set or None)
     services_to_run = set(filter.split(",")) if filter else None
-    workflow.run_collect(cfg, domain, mail_domain, services_to_run)
+    website_url = website_url or ""
+
+    if len(domains) == 1:
+        console.print(f"You ran the collect command for domain: [bold blue]{domains[0]}[/bold blue]")
+    else:
+        console.print(f"You ran the collect command for multiple domains: [bold blue]{', '.join(domains)}[/bold blue]")
+        console.print("The workspace will be created with the name of the first domain.")
+    console.print()
+    console.print(f"You specified the following options:")
+    if mail_domain:
+        console.print(f" [bold italic red]- Mail Domain:[/bold italic red] {mail_domain}")
+    if services_to_run:
+        console.print(f" [bold italic red]- Services to run:[/bold italic red] {', '.join(services_to_run)}")
+    console.print()
+    workflow.run_collect(cfg, domains, mail_domain, services_to_run, website_url)
 
 
 @cli.command()
@@ -71,6 +102,16 @@ def collect(domain, mail_domain, filter):
 def report(domain, incremental, language, export_from_html):
     """Generate a report (HTML and its PDF export) for the collected data in DOMAIN."""
     cfg = config.load()
+    console.print(f"You ran the report command for domain: [bold blue]{domain}[/bold blue]")
+    if incremental or export_from_html or language != "en":
+        console.print("You have specified options that will affect the report generation:")
+        if incremental:
+            console.print(" [bold italic red]- Incremental mode:[/bold italic red] Only new data will be processed since the last run.")
+        if export_from_html:
+            console.print(" [bold italic red]- Export from HTML[/bold italic red]: The report will be generated from the HTML file.")
+        if language != "en":
+            console.print(f" [bold italic red]- Language[/bold italic red]: The report will be generated in [bold blue]{language}[/bold blue] language.")
+        console.print()
     workflow.run_report(cfg, domain, incremental, language, export_from_html)
     
 
@@ -86,6 +127,7 @@ def services():
     console.print("Available services:")
     for service in sorted(services.keys()):
         console.print(f"\t- [bold blue]{service}[/bold blue]: [italic]{services[service]}[/italic]")
+
 
 if __name__ == "__main__":
     cli()

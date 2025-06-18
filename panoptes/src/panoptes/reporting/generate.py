@@ -13,8 +13,8 @@ from panoptes.utils import logging
 log = logging.get(__name__)
 
 @typechecked
-def write_report_json(ws: Path) -> Path:
-    new_data = build(ws)
+def write_report_json(ws: Path, **kwargs) -> Path:
+    new_data = build(ws, imgbb_api_key=kwargs.get("imgbb_api_key", None))
     prev = ws / "report.json"
     if prev.exists():
         prev.rename(ws / "report.prev.json")
@@ -24,7 +24,7 @@ def write_report_json(ws: Path) -> Path:
 
 
 @typechecked
-def generate_report(ws: Path, incremental: bool, language: str, export_from_html: bool) -> tuple[Path, Path]:
+def generate_report(ws: Path, incremental: bool, language: str, export_from_html: bool, **kwargs) -> tuple[Path, Path]:
     """
     Generate an HTML report and its PDF export for the collected data in the workspace.
     Args:
