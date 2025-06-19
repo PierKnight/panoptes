@@ -173,11 +173,6 @@
             It's important to note that while a multitude of data sources were queried, only those providing relevant information with potential use for malicious actors are highlighted here.
         </p>
     </div>
-    
-    
-    {% if dns_records is defined or images is defined or ssl_check is defined or tech_stack is defined or header_analysis is defined %}
-    
-    {% endif %}
 
     {% if dns_records is defined %}
     <div class="section" id="dns-records">
@@ -190,55 +185,65 @@
             These records provide essential technical details, such as the <strong>IP addresses</strong> associated with the domain (<strong>A</strong> and <strong>AAAA</strong> records), <strong>mail servers</strong> (<strong>MX</strong>), <strong>name servers</strong> (<strong>NS</strong>), and other key configurations like <strong>CNAME</strong> and <strong>TXT records</strong>.  
             By analyzing <strong>DNS records</strong>, it is possible to gain an in-depth understanding of the domain’s configuration and its underlying <strong>technical infrastructure</strong>, helping to identify potential <strong>points of interest</strong> or <strong>vulnerabilities</strong>.
         </p>
-        {% for record_type, content in dns_records.items() %}
-            <h4>{{ record_type.upper() }} Records</h4>
-            {% if content is not defined or content|length == 0 %}
-                <p><em>No {{ record_type }} records found for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
-            {% else %}
-                {% if record_type == 'txt' %}
-                    {% for txt_record in content %}
-                        <div><code>{{ txt_record }}</code></div>
-                    {% endfor %}
-                {% else %}
-                    <table class="record-table">
-                        {% if loop.first %}
-                            <tr>
-                                <th>Host</th>
-                                <th>IP Address</th>
-                                <th>ASN</th>
-                                <th>ASN Name</th>
-                            </tr>
-                        {% endif %}
-                        {% for record in content %}
-                            <tr>
-                                <td><code>{{ record.host | default('N/A') }}</code></td>
-                                <td>
-                                    {% if record.ips is defined and record.ips and record.ips[0] is defined and 'ip' in record.ips[0] %}
-                                        {{ record.ips[0].ip }}
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if record.ips is defined and record.ips and record.ips[0] is defined and 'asn' in record.ips[0] %}
-                                        {{ record.ips[0].asn }}
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if record.ips is defined and record.ips and record.ips[0] is defined and 'asn_name' in record.ips[0] %}
-                                        {{ record.ips[0].asn_name }}
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </table>
-                {% endif %}
+
+        {% for dns_domain, dns_data in dns_records.items() %}
+
+            {% if dns_records|length > 1 %}
+                <h4>{{ dns_domain }}</h4>
             {% endif %}
+            {% for record_type, content in dns_data.items() %}
+                <h5>{{ record_type.upper() }} Records</h5>
+                {% if content is not defined or content|length == 0 %}
+                    <p><em>No {{ record_type }} records found for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
+                {% else %}
+                    {% if record_type == 'txt' %}
+                        {% for txt_record in content %}
+                            <div><code>{{ txt_record }}</code></div>
+                        {% endfor %}
+                    {% else %}
+                        <table class="record-table">
+                            {% if loop.first %}
+                                <tr>
+                                    <th>Host</th>
+                                    <th>IP Address</th>
+                                    <th>ASN</th>
+                                    <th>ASN Name</th>
+                                </tr>
+                            {% endif %}
+                            {% for record in content %}
+                                <tr>
+                                    <td><code>{{ record.host | default('N/A') }}</code></td>
+                                    <td>
+                                        {% if record.ips is defined and record.ips and record.ips[0] is defined and 'ip' in record.ips[0] %}
+                                            {{ record.ips[0].ip }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.ips is defined and record.ips and record.ips[0] is defined and 'asn' in record.ips[0] %}
+                                            {{ record.ips[0].asn }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.ips is defined and record.ips and record.ips[0] is defined and 'asn_name' in record.ips[0] %}
+                                            {{ record.ips[0].asn_name }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
         {% endfor %}
+
+        
     </div>
     {% endif %}
     
@@ -248,19 +253,28 @@
             <h2>Domain</h2>
             {% set domain_header_displayed = true %}
         {% endif %}
-        <h3>SPF & DMARC</h3>
+        <h3>DMARC & SPF</h3>
         <p>
             Another useful check is the analysis of <strong>DMARC</strong> and <strong>SPF</strong> records. These email authentication mechanisms are <strong>essential</strong> for protecting a domain from <strong>abuse</strong> and <strong>phishing</strong> attacks. DMARC (<em>Domain-based Message Authentication, Reporting, and Conformance</em>) allows domain owners to specify how emails <em>failing authentication checks</em> should be handled, and provides detailed reports on unauthorized use attempts. On the other hand, SPF (Sender Policy Framework) defines <em>which servers are authorized to send emails</em> on behalf of the domain.
         </p>
-
-        <h4 id="dmarc">DMARC</h4>
-        {% if images is defined and 'dmarc' in images %}
-            <img src="{{ images.dmarc }}" alt="DMARC Info" class="screenshot">
+        {% if 'dmarc' in images %}
+            <h4 id="dmarc">DMARC</h4>
+            {% for dmarc_domain, dmarc_img in images['dmarc'].items() %}
+                {% if images['dmarc'] | length > 1 %} <!-- i.e., multiple images because of multiple domains -->
+                    <h5>{{ dmarc_domain }}</h5>              
+                {% endif %}
+                <img src="{{ images['dmarc'][dmarc_domain] }}" alt="DMARC Info" class="screenshot">
+            {% endfor %}
         {% endif %}
 
-        <h4 id="spf">SPF</h4>
-        {% if images is defined and 'spf' in images %}
-            <img src="{{ images.spf }}" alt="SPF Info" class="screenshot">
+        {% if 'spf' in images %}
+            <h4 id="spf">SPF</h4>
+            {% for spf_domain, spf_img in images['spf'].items() %}
+                {% if images['spf'] | length > 1 %} <!-- i.e., multiple images because of multiple domains -->
+                   <h5>{{ spf_domain }}</h5>                 
+                {% endif %}
+                <img src="{{ images['spf'][spf_domain] }}" alt="DMARC Info" class="screenshot">
+            {% endfor %}
         {% endif %}
     </div>
     {% endif %}

@@ -5,8 +5,8 @@
     <title>Report OSINT – {{ domain | default('N/A') }}</title>
 </head>
 <body>
-<!-- To be later used in the template -->
-    <!-- Unique data breaches with description-->
+<!-- Da utilizzare successivamente nel template -->
+    <!-- Data Breach unici con descrizione-->
     {% set breach_dict = {} %}
     {% if data_breaches is defined %}
         {% for email, breaches in data_breaches.items() %}
@@ -18,9 +18,10 @@
         {% endfor %}
     {% endif %}
 
-    <!-- Unique ASNs with ISPs -->
-    {% set asn_dict = {} %}
+    <!-- ASN unici con ISP -->
+    
     {% if hosts is defined %}
+        {% set asn_dict = {} %}
         {% for ip, info in hosts.items() %}
             {% if info is defined and 'asn' in info and 'isp' in info and info['asn'] and info['isp'] %}
                 {% if asn_dict.update({info['asn']: info['isp']}) %}{% endif %}
@@ -42,7 +43,7 @@
     </div>
 
     <div class="title-page">
-        <img class="title-image" src="https://i.ibb.co/dwQT2yj7/Open-Source-Intelligence-Report.png" alt="Report Open Source Intelligence" class="title-image">
+        <img class="title-image" src="https://i.ibb.co/dwQT2yj7/Open-Source-Intelligence-Report.png" alt="Report di Intelligence da Fonti Aperte" class="title-image">
         <div class="title-overlay">
             <span class="client-domain">{{ domain | default('N/A') }}</span>
         </div>
@@ -50,21 +51,21 @@
 
     <div class="section" id="introduction">
         <h1>Introduzione</h1>
-        <p><strong>Open Source Intelligence (<em>OSINT</em>)</strong> è una disciplina incentrata sulla <strong>ricerca</strong>, <strong>raccolta</strong> e <strong>analisi</strong> di informazioni rilevanti provenienti da fonti pubblicamente accessibili. Questi <strong>dati</strong>, spesso disponibili in <em>formato non strutturato</em>, vengono analizzati e correlati per ottenere una <strong>comprensione completa</strong> del contesto di interesse. Nel campo delle <strong>indagini OSINT</strong>, particolare importanza è data all’uso di <em>tecniche automatizzate</em> per raccogliere dati da una vasta gamma di fonti, seguite da un attento processo manuale per simulare la prospettiva di un potenziale <strong>attaccante</strong> sul bersaglio.</p>
+        <p><strong>Open Source Intelligence (<em>OSINT</em>)</strong>, è una disciplina focalizzata sulla <strong>ricerca</strong>, <strong>raccolta</strong> e <strong>analisi</strong> di informazioni rilevanti da fonti pubblicamente accessibili. Questi <strong>dati</strong>, spesso disponibili in un <em>formato non strutturato</em>, vengono analizzati e correlati per ottenere una <strong>comprensione completa</strong> del contesto di interesse. Nel campo delle <strong>investigazioni OSINT</strong>, viene posta particolare attenzione all'uso di <em>tecniche automatizzate</em> per raccogliere dati da un'ampia gamma di fonti, seguita da una fase di analisi manuale approfondita finalizzata a simulare la prospettiva di un potenziale <strong>attaccante</strong> sul target.</p>
         <img src="https://www.safeguarding-science.eu/wp-content/uploads/OSINT_diagramm_bl.png" alt="Diagramma OSINT" class="screenshot">
     </div>
 
     <div class="section" id="process">
         <h1>Processo</h1>
-        Questo report è stato generato automaticamente utilizzando uno strumento avanzato di Open-Source Intelligence (OSINT) progettato per raccogliere e sintetizzare <strong>informazioni di cybersicurezza</strong> sul dominio in esame. Il processo inizia cercando in una vasta gamma di fonti pubbliche attendibili qualsiasi informazione relativa al dominio, come possibili incidenti di sicurezza, esposizioni o tecnologie utilizzate. Queste informazioni vengono raccolte in modo coerente e organizzato per offrire il quadro più completo possibile.<br><br>
-        Poiché <strong>l’intero report è realizzato automaticamente</strong>, possono verificarsi casi in cui alcuni dettagli siano assenti se non disponibili dalle fonti pubbliche. Tuttavia, prima della consegna, tutte le informazioni incluse vengono <strong>accuratamente verificate</strong> per assicurare i massimi standard di qualità e affidabilità.
+        Questo report è stato generato automaticamente utilizzando uno strumento avanzato di Open-Source Intelligence (OSINT) progettato per raccogliere e riassumere <strong>informazioni sulla sicurezza informatica</strong> relative al dominio in questione. Il processo inizia cercando su un'ampia gamma di fonti pubbliche attendibili qualsiasi dato relativo al dominio, come possibili incidenti di sicurezza, esposizioni o tecnologie in uso. Queste informazioni vengono raccolte in modo coerente e organizzato per fornire il quadro più completo possibile.<br><br>
+        Poiché l'<strong>intero report è creato automaticamente</strong>, potrebbero esserci occasioni in cui alcuni dettagli mancano se non disponibili da fonti pubbliche. Tuttavia, prima che il report venga consegnato, tutte le informazioni incluse vengono attentamente <strong>verificate per accuratezza</strong> per garantire i più alti standard di qualità e affidabilità.
     </div>
 
     <div class="section" id="retrieved-info-summary">
         <h1>Riepilogo delle Informazioni Recuperate</h1>
         <p>
-            In questa sezione viene presentato un <strong>elenco delle informazioni</strong> identificate durante l’<strong’indagine OSINT</strong> per la <strong>società target</strong>.
-            La seguente tabella mostra <strong>informazioni statistiche</strong> sui dati raccolti, tra cui <strong>rischi associati</strong> e <strong>occorrenze</strong>.
+            In questa sezione viene presentato un <strong>elenco di informazioni</strong> identificate durante l'<strong>investigazione OSINT</strong> per l'<strong>azienda target</strong>.
+            La seguente tabella fornisce <strong>informazioni statistiche</strong> sui dati raccolti, inclusi <strong>rischi associati</strong> e <strong>occorrenze</strong>.
         </p>
         <table class="summary-table">
             <tr>
@@ -73,7 +74,7 @@
                 <th style="text-align: center;">Occorrenze</th>
             </tr>
             <tr>
-                <td>Indirizzi e-mail compromessi</td>
+                <td>Indirizzi email compromessi</td>
                 <td style="color: darkred"><strong><em>Critico</em></strong></td>
                 <td class="summary-risk critical">
                     {% if leaked_credentials is defined and leaked_credentials|length > 0 %}
@@ -107,7 +108,7 @@
                 </td>
             </tr>
             <tr>
-                <td>Violazioni di dati</td>
+                <td>Data Breach</td>
                 <td style="color: red"><strong><em>Alto</em></strong></td>
                 <td class="summary-risk high">
                     {% if breach_dict|length > 0 %}
@@ -130,7 +131,7 @@
             </tr>
             <tr>
                 <td>Sottodomini</td>
-                <td style="color: blue"><strong><em>Informativo</em></strong></td>
+                <td style="color: blue"><strong><em>Informazione</em></strong></td>
                 <td class="summary-risk info">
                     {% if subdomains_ips is defined and subdomains_ips|length > 0 %}
                         {{ subdomains_ips.keys()|length }}
@@ -141,7 +142,7 @@
             </tr>
             <tr>
                 <td>Provider di hosting</td>
-                <td style="color: blue"><strong><em>Informativo</em></strong></td>
+                <td style="color: blue"><strong><em>Informazione</em></strong></td>
                 <td class="summary-risk info">
                     {% if asn_dict|length > 0 %}
                         {{ asn_dict|length }}
@@ -152,7 +153,7 @@
             </tr>
             <tr>
                 <td>Indirizzi IP</td>
-                <td style="color: blue"><strong><em>Informativo</em></strong></td>
+                <td style="color: blue"><strong><em>Informazione</em></strong></td>
                 <td class="summary-risk info">
                     {% if subdomains_ips is defined and subdomains_ips|length > 0 %}
                         {{ subdomains_ips.values()|map('length')|sum }}
@@ -165,75 +166,79 @@
     </div>
 
     <div class="section" id="investigation">
-        <h1>Indagine</h1>
+        <h1>Investigazione</h1>
         <p>
-            In questo capitolo viene illustrato il processo di raccolta delle informazioni svolto sull’infrastruttura web di 
+            In questo capitolo approfondiamo il processo di raccolta delle informazioni condotto sull'infrastruttura web di 
             {% if web_domain is defined and web_domain %}{{ web_domain }}{% else %}{{ domain | default('N/A') }}{% endif %}.
-            È importante notare che, sebbene siano state consultate numerose fonti di dati, qui vengono messe in evidenza solo quelle che hanno fornito informazioni con potenziale interesse per attori malevoli.
+            È importante notare che, sebbene siano state interrogate molteplici fonti di dati, qui vengono evidenziate solo quelle che forniscono informazioni rilevanti con potenziale utilizzo da parte di attori malintenzionati.
         </p>
     </div>
-
+    
 
     {% if dns_records is defined %}
     <div class="section" id="dns-records">
-        {% if not domain_header_displayed %}
-            <h2>Dominio</h2>
-            {% set domain_header_displayed = true %}
-        {% endif %}
+        <h2>Dominio</h2>
+        {% set domain_header_displayed = true %}
+
         <h3>Record DNS</h3>
         <p>
-            Un’altra importante fonte di informazioni per l’analisi di un dominio è rappresentata dai <strong>record DNS</strong>.  
-            Questi record forniscono dettagli tecnici essenziali come gli <strong>indirizzi IP</strong> associati al dominio (<strong>A</strong> e <strong>AAAA</strong>), <strong>mail server</strong> (<strong>MX</strong>), <strong>name server</strong> (<strong>NS</strong>) e altre configurazioni chiave come <strong>CNAME</strong> e <strong>record TXT</strong>.  
-            Analizzando i <strong>record DNS</strong> è possibile ottenere una comprensione approfondita della configurazione del dominio e della sua <strong>infrastruttura tecnica</strong>, evidenziando <strong>punti di interesse</strong> o <strong>vulnerabilità</strong>.
+            Un'altra importante fonte di informazioni per l'analisi del dominio è rappresentata dai <strong>record DNS</strong>.  
+            Questi record forniscono dettagli tecnici essenziali, come gli <strong>indirizzi IP</strong> associati al dominio (<strong>A</strong> e <strong>AAAA</strong>), i <strong>server di posta</strong> (<strong>MX</strong>), i <strong>name server</strong> (<strong>NS</strong>) e altre configurazioni chiave come <strong>CNAME</strong> e <strong>TXT</strong>.  
+            Analizzando i <strong>record DNS</strong>, è possibile ottenere una comprensione approfondita della configurazione del dominio e della sua <strong>infrastruttura tecnica</strong> sottostante, aiutando a identificare potenziali <strong>punti di interesse</strong> o <strong>vulnerabilità</strong>.
         </p>
-        {% for record_type, content in dns_records.items() %}
-            <h4>Record {{ record_type.upper() }}</h4>
-            {% if content is not defined or content|length == 0 %}
-                <p><em>Nessun record {{ record_type }} trovato per <strong>{{ domain | default('N/A') }}</strong>.</em></p>
-            {% else %}
-                {% if record_type == 'txt' %}
-                    {% for txt_record in content %}
-                        <div><code>{{ txt_record }}</code></div>
-                    {% endfor %}
-                {% else %}
-                    <table class="record-table">
-                        {% if loop.first %}
-                            <tr>
-                                <th>Host</th>
-                                <th>Indirizzo IP</th>
-                                <th>ASN</th>
-                                <th>Nome ASN</th>
-                            </tr>
-                        {% endif %}
-                        {% for record in content %}
-                            <tr>
-                                <td><code>{{ record.host | default('N/A') }}</code></td>
-                                <td>
-                                    {% if record.ips is defined and record.ips and record.ips[0] is defined and 'ip' in record.ips[0] %}
-                                        {{ record.ips[0].ip }}
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if record.ips is defined and record.ips and record.ips[0] is defined and 'asn' in record.ips[0] %}
-                                        {{ record.ips[0].asn }}
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if record.ips is defined and record.ips and record.ips[0] is defined and 'asn_name' in record.ips[0] %}
-                                        {{ record.ips[0].asn_name }}
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </table>
-                {% endif %}
+        {% for dns_domain, dns_data in dns_records.items() %}
+            {% if dns_records|length > 1 %}
+                <h4>{{ dns_domain }}</h4>
             {% endif %}
+            {% for record_type, content in dns_data.items() %}
+                <h5>Record {{ record_type.upper() }}</h5>
+                {% if content is not defined or content|length == 0 %}
+                    <p><em>Nessun record {{ record_type }} trovato per <strong>{{ domain | default('N/A') }}</strong>.</em></p>
+                {% else %}
+                    {% if record_type == 'txt' %}
+                        {% for txt_record in content %}
+                            <div><code>{{ txt_record }}</code></div>
+                        {% endfor %}
+                    {% else %}
+                        <table class="record-table">
+                            {% if loop.first %}
+                                <tr>
+                                    <th>Host</th>
+                                    <th>Indirizzo IP</th>
+                                    <th>ASN</th>
+                                    <th>Nome ASN</th>
+                                </tr>
+                            {% endif %}
+                            {% for record in content %}
+                                <tr>
+                                    <td><code>{{ record.host | default('N/A') }}</code></td>
+                                    <td>
+                                        {% if record.ips is defined and record.ips and record.ips[0] is defined and 'ip' in record.ips[0] %}
+                                            {{ record.ips[0].ip }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.ips is defined and record.ips and record.ips[0] is defined and 'asn' in record.ips[0] %}
+                                            {{ record.ips[0].asn }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.ips is defined and record.ips and record.ips[0] is defined and 'asn_name' in record.ips[0] %}
+                                            {{ record.ips[0].asn_name }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </table>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
         {% endfor %}
     </div>
     {% endif %}
@@ -241,22 +246,31 @@
     {% if images is defined and ('dmarc' in images or 'spf' in images) %}
     <div class="section" id="spf-dmarc">
         {% if not domain_header_displayed %}
-            <h2>Dominio</h2>
+            <h2>Domain</h2>
             {% set domain_header_displayed = true %}
         {% endif %}
-        <h3>SPF & DMARC</h3>
+        <h3>DMARC & SPF</h3>
         <p>
-            Un altro controllo utile è rappresentato dall’analisi dei record <strong>DMARC</strong> e <strong>SPF</strong>. Questi meccanismi di autenticazione delle e-mail sono <strong>essenziali</strong> per proteggere un dominio da <strong>abusi</strong> e <strong>phishing</strong>. DMARC (<em>Domain-based Message Authentication, Reporting, and Conformance</em>) permette ai proprietari di indicare come devono essere gestite le e-mail che <em>falliscono i controlli</em> di autenticazione, fornendo report dettagliati su eventuali tentativi di utilizzo non autorizzato. SPF (Sender Policy Framework) definisce <em>quali server sono autorizzati a inviare e-mail</em> per conto del dominio stesso.
+            Another useful check is the analysis of <strong>DMARC</strong> and <strong>SPF</strong> records. These email authentication mechanisms are <strong>essential</strong> for protecting a domain from <strong>abuse</strong> and <strong>phishing</strong> attacks. DMARC (<em>Domain-based Message Authentication, Reporting, and Conformance</em>) allows domain owners to specify how emails <em>failing authentication checks</em> should be handled, and provides detailed reports on unauthorized use attempts. On the other hand, SPF (Sender Policy Framework) defines <em>which servers are authorized to send emails</em> on behalf of the domain.
         </p>
-
-        <h4 id="dmarc">DMARC</h4>
-        {% if images is defined and 'dmarc' in images %}
-            <img src="{{ images.dmarc }}" alt="Info DMARC" class="screenshot">
+        {% if 'dmarc' in images %}
+            <h4 id="dmarc">DMARC</h4>
+            {% for dmarc_domain, dmarc_img in images['dmarc'].items() %}
+                {% if images['dmarc'] | length > 1 %} <!-- i.e., multiple images because of multiple domains -->
+                    <h5>{{ dmarc_domain }}</h5>              
+                {% endif %}
+                <img src="{{ images['dmarc'][dmarc_domain] }}" alt="DMARC Info" class="screenshot">
+            {% endfor %}
         {% endif %}
 
-        <h4 id="spf">SPF</h4>
-        {% if images is defined and 'spf' in images %}
-            <img src="{{ images.spf }}" alt="Info SPF" class="screenshot">
+        {% if 'spf' in images %}
+            <h4 id="spf">SPF</h4>
+            {% for spf_domain, spf_img in images['spf'].items() %}
+                {% if images['spf'] | length > 1 %} <!-- i.e., multiple images because of multiple domains -->
+                   <h5>{{ spf_domain }}</h5>                 
+                {% endif %}
+                <img src="{{ images['spf'][spf_domain] }}" alt="DMARC Info" class="screenshot">
+            {% endfor %}
         {% endif %}
     </div>
     {% endif %}
@@ -269,15 +283,15 @@
         {% endif %}
         <h3>Controllo SSL</h3>
         <p>
-            I certificati SSL/TLS sono un altro componente fondamentale per la valutazione della sicurezza e affidabilità di un dominio. Garantiscono che le comunicazioni tra sito web e utenti siano <strong>criptate</strong> e <strong>sicure</strong>. Analizzare questi certificati permette di verificare la loro <strong>validità</strong>, la <strong>scadenza</strong> e l’<strong>autorità di certificazione</strong> che li ha emessi. Una configurazione corretta può prevenire <strong>attacchi man-in-the-middle</strong> e garantire che le <strong>informazioni sensibili</strong> siano protette in transito.
+            I certificati SSL/TLS sono un altro componente cruciale per valutare la sicurezza e l'affidabilità di un dominio. Garantiscono che le comunicazioni tra il sito web e i suoi utenti siano <strong>criptate</strong> e <strong>sicure</strong>. L'analisi di questi certificati consente di verificarne la <strong>validità</strong>, la <strong>data di scadenza</strong> e l'<strong>autorità di certificazione</strong> emittente. Una configurazione corretta può prevenire <strong>attacchi man-in-the-middle</strong> e garantire che le <strong>informazioni sensibili</strong> siano protette durante la trasmissione.
         </p>
-        <p>L’analisi dei certificati SSL/TLS include:</p>
+        <p>L'analisi dei certificati SSL/TLS include:</p>
         <ul>
-            <li><strong>Verifica della validità:</strong> Assicurarsi che la data di scadenza del certificato sia valida.</li>
-            <li><strong>Autorità di certificazione:</strong> Identificare l’ente emittente e verificarne l’attendibilità.</li>
-            <li><strong>Configurazione sicurezza:</strong> Esaminare le impostazioni di sicurezza come l’uso di <strong>protocolli di cifratura sicuri</strong> e configurazioni <strong>HSTS</strong>.</li>
+            <li><strong>Controllo di validità:</strong> Verifica che la data di scadenza del certificato sia ancora valida.</li>
+            <li><strong>Autorità di certificazione:</strong> Identifica l'autorità emittente e verifica la sua affidabilità.</li>
+            <li><strong>Configurazione di sicurezza:</strong> Esamina le impostazioni di sicurezza, come l'uso di <strong>protocolli di cifratura robusti</strong> e configurazioni <strong>HSTS</strong>.</li>
         </ul>
-        <h4 id="server-certificate-info">Informazioni Certificato Server</h4>
+        <h4 id="server-certificate-info">Informazioni sul Certificato del Server</h4>
         <p>
         {% if ssl_check is defined %}
             {% if 'Common name' in ssl_check and ssl_check['Common name'] %}
@@ -317,7 +331,7 @@
             {% endif %}
             
             {% if 'Serial Number' in ssl_check and ssl_check['Serial Number'] %}
-                <strong>Numero di serie:</strong> <code>{{ ssl_check['Serial Number'] }}</code><br>
+                <strong>Numero seriale:</strong> <code>{{ ssl_check['Serial Number'] }}</code><br>
             {% endif %}
             
             {% if 'Signature Algorithm' in ssl_check and ssl_check['Signature Algorithm'] %}
@@ -329,7 +343,7 @@
             {% endif %}
         {% endif %}
         </p>
-        <h4 id="certificate-chain">Catena di certificati</h4>
+        <h4 id="certificate-chain">Catena di Certificati</h4>
         {% if images is defined and 'ssl_check' in images %}
             <img src="{{ images.ssl_check }}" alt="Catena SSL" class="screenshot">
         {% endif %}
@@ -346,7 +360,7 @@
         <table>
             <tr>
                 <th>Categoria</th>
-                <th>Tecnologia/e utilizzata/e</th>
+                <th>Tecnologie Utilizzate</th>
             </tr>
             {% if tech_stack is defined %}
                 {% for category, technologies in tech_stack.items() %}
@@ -372,9 +386,9 @@
             <h2>Dominio</h2>
             {% set domain_header_displayed = true %}
         {% endif %}
-        <h3>Analisi degli header</h3>
+        <h3>Analisi degli Header</h3>
         {% if header_analysis|length > 0 %}
-            <p>L’analisi degli header ha mostrato l’assenza di importanti header di sicurezza:</p>
+            <p>L'analisi degli header ha rilevato l'assenza di importanti header di sicurezza:</p>
             <table>
                 <tr><th>Header</th><th>Descrizione</th></tr>
                 {% for header, value in header_analysis.items() %}
@@ -382,7 +396,7 @@
                 {% endfor %}
             </table>
         {% else %}
-            <p>Tutti gli header di sicurezza principali sono presenti, indicando che l'applicazione web ha implementato le misure necessarie per rafforzare la sua postura di sicurezza.</p>
+            <p>Tutti gli importanti header di sicurezza sono presenti, indicando che l'applicazione web ha implementato le misure necessarie per migliorare il suo livello di sicurezza.</p>
         {% endif %}
     </div>
     {% endif %}
@@ -391,12 +405,12 @@
     <div class="section" id="subdomains">
         <h2>Sottodomini</h2>
         <p>
-            Qui è presente un elenco dei sottodomini scoperti durante l’indagine e i rispettivi indirizzi IP.<br>
-            Questi sottodomini possono rappresentare ulteriori vettori di attacco o offrire dettagli sull’infrastruttura web di <strong>{{ domain | default('N/A') }}</strong>
+            Di seguito è riportato un elenco di sottodomini scoperti durante l'investigazione con i rispettivi indirizzi IP.<br>
+            Questi sottodomini possono fornire ulteriori vettori di attacco o informazioni sull'infrastruttura web di <strong>{{ domain | default('N/A') }}</strong>
         </p>
         {% if subdomains_ips|length > 0 %}
             <table class="subdomain-table">
-                <tr><th>Sottodominio</th><th>Indirizzo/i IP</th></tr>
+                <tr><th>Sottodominio</th><th>Indirizzo(i) IP</th></tr>
                 {% for subdomain, ips in subdomains_ips.items() %}
                     <tr>
                         <td><code>{{ subdomain }}</code></td>
@@ -420,7 +434,7 @@
     {% if hosts is defined %} 
     <div class="section" id="hosts">
         <h2>Host</h2>
-        <p>In questo capitolo vengono raccolte e analizzate tutte le informazioni relative agli <strong>host</strong> identificati durante l’indagine. Ogni host rappresenta un potenziale <strong>punto di accesso</strong> e una preziosa <strong>fonte di dati</strong> per comprendere meglio la <strong>rete</strong> e le <strong>risorse</strong> del target. Questo capitolo offre una visione chiara e approfondita di ciascun host, evidenziando <strong>elementi critici</strong> che potrebbero essere sfruttati in un attacco.</p>
+        <p>In questo capitolo vengono raccolte e analizzate tutte le informazioni relative agli <strong>host</strong> identificati durante l'investigazione. Ogni host rappresenta un potenziale <strong>punto di accesso</strong> e una preziosa <strong>fonte di dati</strong> per comprendere meglio la <strong>rete</strong> e le <strong>risorse</strong> del target. Questo capitolo fornisce una visione chiara e approfondita di ciascun host, evidenziando <strong>elementi critici</strong> che potrebbero essere sfruttati in un potenziale attacco.</p>
         {% if hosts|length > 0 %}
             <h3 class="vulerability-summary-header">
                 Riepilogo delle Vulnerabilità
@@ -429,7 +443,7 @@
                 {% if total_vulns > 0.0 %}
                     <tr>
                         <th class="vulnerability-summary-ip">Indirizzo IP</th>
-                        <th class="vulnerability-summary-vulns">Numero vulnerabilità</th>
+                        <th class="vulnerability-summary-vulns">Num. di vulnerabilità</th>
                         <th class="vulnerability-summary-risk">Livello di rischio</th>
                     </tr>
                     {% for ip, info in hosts.items() %}
@@ -473,94 +487,95 @@
                         <td colspan="2">
                             <code class="bold-transparent-code">{{ ip }}</code><br/>
                             {% if (info is defined and ((info['city'] is defined and info['city']) or (info['country_name'] is defined and info['country_name']))) %}
-                                Posizione:
-                                {% if info['city'] is defined and info['city'] %}{{ info['city'] }}{% endif %}
-                                {% if (info['city'] is defined and info['city']) and (info['country_name'] is defined and info['country_name']) %}-{% endif %}
-                                {% if info['country_name'] is defined and info['country_name'] %}{{ info['country_name'] }}{% endif %}
+                            Località:
+                            {% if info['city'] is defined and info['city'] %}{{ info['city'] }}{% endif %}
+                            {% if (info['city'] is defined and info['city']) and (info['country_name'] is defined and info['country_name']) %}-{% endif %}
+                            {% if info['country_name'] is defined and info['country_name'] %}{{ info['country_name'] }}{% endif %}
                             {% endif %}
                         </td>
                     </tr>
-                    {% if info is defined and info|length > 0 %}
-                        {% if info['data'] is defined and info['data']|length > 0 %}
-                            {% for service in info.data %}
-                                <tr class="exposed-service-header">
+                        {% if info is defined and info|length > 0 %}
+                            {% if info['data'] is defined and info['data']|length > 0 %}
+                                {% for service in info.data %}
+                                        <tr class="exposed-service-header">
+                                            <td colspan="2">
+                                                <code class="bold-transparent-code">{{ service['port'] if 'port' in service else 'N/A' }}/{{ service['transport'] if 'transport' in service else 'N/A'}}</strong></code><br/>
+                                            </td>
+                                        </tr>
+                                        <tr class="exposed-service-data">
+                                            <td colspan="2">
+                                                {% if (service['product'] is defined and service['product']) or (service['os'] is defined and service['os'] != None) %}
+                                                    <strong><em>Software</em></strong><br/>
+                                                    {% if service['product'] is defined and service['product'] %}
+                                                        &emsp;{{ service['product'] }}{% if service['version'] is defined and service['version'] %}/{{ service['version'] }}{% endif %}<br/>
+                                                    {% endif %}
+                                                    {% if service['os'] is defined and service['os'] != None %}
+                                                        &emsp;{{ service['os'] }}<br/>
+                                                    {% endif %}
+                                                {% endif %}
+                                                {% if service['data'] is defined and service['data'] %}
+                                                    <strong><em>Dati</em></strong><br/>
+                                                    <pre style="font-size: 12px;">{{ service['data'] }}</pre>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                {% endfor %}
+                            {% endif %}
+                            {% if info['asn'] is defined and info['asn'] %}
+                                <tr class="asn-info">
                                     <td colspan="2">
-                                        <code class="bold-transparent-code">{{ service['port'] if 'port' in service else 'N/A' }}/{{ service['transport'] if 'transport' in service else 'N/A'}}</code><br/>
+                                        <strong><em>Informazioni ASN</em></strong><br/>
+                                        &emsp;<code class="bold-transparent-code">{{ info['asn'] }}</code>
+                                        {% if info['isp'] is defined and info['isp'] %} ({{ info['isp'] }}){% endif %}<br/>
                                     </td>
                                 </tr>
-                                <tr class="exposed-service-data">
+                            {% endif %}
+                            {% if info['vulns'] is defined and info['vulns']|length > 0 %}
+                                {% for cve in info['vulns'] %}
+                                    <tr class="vulnerability-row">
+                                        <td class="vulnerability-info">
+                                            {% if loop.first %}
+                                                <strong><em>Vulnerabilità</em></strong><br/>
+                                            {% endif %}
+                                            <strong>{{ cve['cve_id'] if cve is defined and 'cve_id' in cve else '' }}</strong><br/>
+                                            {{ cve['summary'] if cve is defined and 'summary' in cve else '' }}
+                                        </td>
+                                        <td class="vulnerability-score
+                                            {% if cve is defined and 'cvss' in cve and cve['cvss'] >= 9 %}
+                                                critical
+                                            {% elif cve is defined and 'cvss' in cve and cve['cvss'] >= 7 %}
+                                                high
+                                            {% elif cve is defined and 'cvss' in cve and cve['cvss'] >= 4 %}
+                                                medium
+                                            {% else %}
+                                                low
+                                            {% endif %}
+                                        ">
+                                            <strong>{{ cve['cvss'] if cve is defined and 'cvss' in cve else '' }}</strong>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr class="vulnerability-info">
                                     <td colspan="2">
-                                        {% if (service['product'] is defined and service['product']) or (service['os'] is defined and service['os'] != None) %}
-                                            <strong><em>Software</em></strong><br/>
-                                            {% if service['product'] is defined and service['product'] %}
-                                                &emsp;{{ service['product'] }}{% if service['version'] is defined and service['version'] %}/{{ service['version'] }}{% endif %}<br/>
-                                            {% endif %}
-                                            {% if service['os'] is defined and service['os'] != None %}
-                                                &emsp;{{ service['os'] }}<br/>
-                                            {% endif %}
-                                        {% endif %}
-                                        {% if service['data'] is defined and service['data'] %}
-                                            <strong><em>Dati</em></strong><br/>
-                                            <pre style="font-size: 12px;">{{ service['data'] }}</pre>
-                                        {% endif %}
+                                        <strong><em>Nessuna vulnerabilità trovata per questo host.</em></strong>
                                     </td>
                                 </tr>
-                            {% endfor %}
-                        {% endif %}
-                        {% if info['asn'] is defined and info['asn'] %}
-                            <tr class="asn-info">
-                                <td colspan="2">
-                                    <strong><em>Informazioni ASN</em></strong><br/>
-                                    &emsp;<code class="bold-transparent-code">{{ info['asn'] }}</code>
-                                    {% if info['isp'] is defined and info['isp'] %} ({{ info['isp'] }}){% endif %}<br/>
-                                </td>
-                            </tr>
-                        {% endif %}
-                        {% if info['vulns'] is defined and info['vulns']|length > 0 %}
-                            {% for cve in info['vulns'] %}
-                                <tr class="vulnerability-row">
-                                    <td class="vulnerability-info">
-                                        {% if loop.first %}
-                                            <strong><em>Vulnerabilità</em></strong><br/>
-                                        {% endif %}
-                                        <strong>{{ cve['cve_id'] if cve is defined and 'cve_id' in cve else '' }}</strong><br/>
-                                        {{ cve['summary'] if cve is defined and 'summary' in cve else '' }}
-                                    </td>
-                                    <td class="vulnerability-score
-                                        {% if cve is defined and 'cvss' in cve and cve['cvss'] >= 9 %}
-                                            critical
-                                        {% elif cve is defined and 'cvss' in cve and cve['cvss'] >= 7 %}
-                                            high
-                                        {% elif cve is defined and 'cvss' in cve and cve['cvss'] >= 4 %}
-                                            medium
-                                        {% else %}
-                                            low
-                                        {% endif %}
-                                    ">
-                                        <strong>{{ cve['cvss'] if cve is defined and 'cvss' in cve else '' }}</strong>
-                                    </td>
-                                </tr>
-                            {% endfor %}
+                            {% endif %}
                         {% else %}
-                            <tr class="vulnerability-info">
+                            <tr class="no-data-row">
                                 <td colspan="2">
-                                    <strong><em>Nessuna vulnerabilità trovata per questo host.</em></strong>
+                                    <strong><em>Nessun dato trovato per questo host.</em></strong>
                                 </td>
                             </tr>
                         {% endif %}
-                    {% else %}
-                        <tr class="no-data-row">
-                            <td colspan="2">
-                                <strong><em>Nessun dato trovato per questo host.</em></strong>
-                            </td>
-                        </tr>
-                    {% endif %}
+                    </tr>
                 </table>
             {% endfor %}
         {% else %}
-            <em>
-                Nessun host trovato per <strong>{{ domain | default('N/A') }}</strong>.
-            </em>
+        <em>
+            Nessun host trovato per <strong>{{ domain | default('N/A') }}</strong>.
+        </em>
         {% endif %}
     </div>
     {% endif %}
@@ -568,7 +583,7 @@
     {% if asn_dict is defined %}
     <div class="section" id="hosting-providers">
         <h2>Provider di Hosting</h2>
-        <p>Questa sezione evidenzia i <strong>provider di hosting</strong> identificati tramite tutte le fonti pubbliche. Queste informazioni possono aiutare a capire come un attaccante potrebbe sfruttare tali provider. In particolare, soggetti malevoli possono sfruttare provider noti per <strong>bassa sicurezza</strong> o <strong>tolleranza verso attività illecite</strong> per ospitare server di comando e controllo, diffondere malware o lanciare campagne di phishing. La scelta del provider può contribuire anche a eludere le <strong>misure di sicurezza</strong>, riducendo la probabilità di individuazione o blocco.</p>
+        <p>Questa sezione evidenzia i <strong>provider di hosting</strong> identificati da tutte le fonti di dati pubbliche. Queste informazioni possono essere preziose per comprendere come un attaccante potrebbe sfruttare questi provider. In particolare, attori malintenzionati potrebbero utilizzare provider noti per <strong>scarsa sicurezza</strong> o <strong>tolleranza</strong> verso attività illegali per ospitare server di comando e controllo, distribuire malware o lanciare campagne di phishing. La scelta del provider giusto può anche aiutare a eludere <strong>misure di sicurezza</strong>, riducendo la probabilità di essere rilevati o bloccati.</p>
         {% if asn_dict|length > 0 %}
             <table>
                 <tr><th>ASN</th><th>ISP</th></tr>
@@ -589,8 +604,8 @@
     <div class="section" id="compromised-hosts">
         <h2>Host Compromessi</h2>
         <p>
-            <p>Questa sezione include gli <strong>host</strong> dell’organizzazione che risultano segnalati per attività potenzialmente malevole da fonti pubbliche di reputazione IP. L’analisi mira a verificare se uno o più indirizzi IP collegati all’azienda sono stati riconosciuti come coinvolti in <strong>comportamenti anomali</strong> o <strong>abusivi</strong> (ad esempio attività sospette, spam, scan, tentativi di accesso non autorizzato). Queste segnalazioni, pur non confermando necessariamente una reale compromissione, costituiscono un <strong>indicatore di rischio</strong> e possono suggerire la necessità di ulteriori controlli interni sui sistemi coinvolti.
-            Sono mostrati solo host compromessi negli ultimi 365 giorni.</p>
+            <p>Questa sezione include <strong>host</strong> appartenenti all'organizzazione che sono segnalati per attività potenzialmente malevole da fonti pubbliche di reputazione IP. L'analisi mira a verificare se uno o più indirizzi IP associati alla società sono stati identificati come coinvolti in <strong>comportamenti anomali</strong> o <strong>abusivi</strong> (es. attività sospette, spam, scanning, tentativi di accesso non autorizzati). Questi report, sebbene non sempre confermino un'effettiva compromissione, rappresentano un <strong>indicatore di rischio</strong> e possono suggerire la necessità di ulteriori controlli interni sui sistemi coinvolti.
+            Vengono mostrati solo host compromessi negli ultimi 365 giorni.</p>
         </p>
         {% if compromised_ips|length > 0 %}
             {% for ip, info_list in compromised_ips.items() %}
@@ -622,19 +637,19 @@
 
     {% if leaked_credentials is defined %}
     <div class="section">
-        <h2 id="compromised-credentials">Credenziali compromesse</h2>
+        <h2 id="compromised-credentials">Credenziali Compromesse</h2>
         <p>
-            Questa sezione contiene tutte le credenziali compromesse rilevate durante l’indagine OSINT. La compromissione delle credenziali costituisce una delle minacce più serie alla cybersicurezza, poiché può offrire agli attaccanti accesso diretto a <strong>risorse interne sensibili</strong>, <strong>sistemi critici</strong> e <strong>dati riservati</strong>. Le informazioni raccolte derivano da <strong>violazioni note</strong>, <strong>data leak</strong> e <strong>piattaforme di sharing illecite</strong>, offrendo una panoramica dei rischi potenziali per l’azienda. L’analisi mira a individuare possibili <strong>punti di ingresso</strong> per futuri attacchi e suggerire <strong>misure di mitigazione</strong> per proteggere l’integrità dei sistemi aziendali.
+            Questa sezione contiene tutte le credenziali compromesse identificate durante l'investigazione OSINT. La compromissione delle credenziali è una delle minacce più gravi alla sicurezza informatica, poiché può fornire agli attaccanti l'accesso diretto a <strong>risorse interne sensibili</strong>, <strong>sistemi critici</strong> e <strong>dati confidenziali</strong>. Le informazioni raccolte provengono da <strong>violazioni note</strong>, <strong>data leak</strong> e <strong>piattaforme di condivisione illecite</strong>, fornendo una panoramica dei rischi che l'azienda potrebbe affrontare. Questa analisi mira a identificare potenziali <strong>punti di ingresso</strong> per futuri attacchi e suggerire <strong>misure di mitigazione</strong> per proteggere l'integrità dei sistemi aziendali.
         </p>
         {% if leaked_credentials|length > 0 %}
-            <h3 id="summary-of-leaked-credentials">Riepilogo delle credenziali compromesse</h3>
+            <h3 id="summary-of-leaked-credentials">Riepilogo delle Credenziali Compromesse</h3>
             <table>
-                <tr><th>Email</th><th>Numero</th></tr>
+                <tr><th>Email</th><th>Conteggio</th></tr>
                 {% for email, leaks in leaked_credentials.items() %}
                     <tr><td><code>{{ email }}</code></td><td>{{ leaks|length }}</td></tr>
                 {% endfor %}
             </table>
-            <h3 id="leaked-credentials">Dettaglio credenziali compromesse</h3>
+            <h3 id="leaked-credentials">Credenziali Compromesse</h3>
             {% for email, leaks in leaked_credentials.items() %}
                 <div class="leaked">
                     <div class="leaked-start">
@@ -643,12 +658,12 @@
                                 <td><h4><code class="bold-transparent-code">{{ email }}</code></h4></td>
                             </tr>
                         </table>
-                        <h5>Coinvolgimento in violazioni di dati</h5>
+                        <h5>Coinvolgimento in Data Breach</h5>
                         {% if data_breaches is defined and email in data_breaches and data_breaches[email]|length == 0 %}
                             <p><em>Nessuna violazione di dati trovata per <strong>{{ email }}</strong> da fonti pubbliche.</em></p>
                         {% elif data_breaches is defined and email in data_breaches %}
                             <table>
-                                <tr><th>Titolo</th><th>Data</th><th>Dati compromessi</th></tr>
+                                <tr><th>Titolo</th><th>Data</th><th>Dati Compromessi</th></tr>
                                 {% for breach in data_breaches[email] %}
                                     <tr>
                                         <td><strong>{{ breach.Title if breach is defined and 'Title' in breach else '' }}</strong></td>
@@ -658,10 +673,10 @@
                                 {% endfor %}
                             </table>
                         {% else %}
-                            <p><em>Nessuna informazione sulle violazioni di dati per <strong>{{ email }}</strong>.</em></p>
+                            <p><em>Nessuna informazione su Data Breach disponibile per <strong>{{ email }}</strong>.</em></p>
                         {% endif %}
                     </div>
-                    <h5>Data leak</h5>
+                    <h5>Data Leak</h5>
                     {% for leak in leaks %}
                         <div class="data-leak-container">
                             <code class="data-leak">{{ leak }}</code>
@@ -677,10 +692,10 @@
 
     {% if breach_dict is defined %}
     <div class="section" id="data-breach-details">
-        <h2>Dettagli delle violazioni di dati</h2>
+        <h2>Dettagli dei Data Breach</h2>
         <p>
-        Questo capitolo fornisce <strong>informazioni dettagliate</strong> sulle <strong>violazioni di dati</strong> che hanno coinvolto la <strong>società</strong>.
-        Questi dettagli, raccolti da <strong>fonti pubbliche</strong> e <strong>database di data leak</strong>, offrono una panoramica chiara degli <strong>incidenti di sicurezza</strong> e aiutano a identificare <strong>aree vulnerabili</strong> all’interno dell’organizzazione.
+        Questo capitolo fornisce <strong>informazioni dettagliate</strong> sui <strong>Data Breach</strong> che riguardano l'<strong>azienda</strong>.
+        Questi dettagli, raccolti da <strong>fonti pubbliche</strong> e <strong>database di data leak</strong>, offrono una panoramica chiara degli <strong>incidenti di sicurezza</strong> e aiutano a identificare <strong>aree vulnerabili</strong> all'interno dell'organizzazione.
         </p>
         {% if breach_dict|length > 0 %}
             <table>

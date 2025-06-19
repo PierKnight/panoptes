@@ -103,6 +103,7 @@ def report(domain, incremental, language, export_from_html):
     """Generate a report (HTML and its PDF export) for the collected data in DOMAIN."""
     cfg = config.load()
     console.print(f"You ran the report command for domain: [bold blue]{domain}[/bold blue]")
+    console.print()
     if incremental or export_from_html or language != "en":
         console.print("You have specified options that will affect the report generation:")
         if incremental:

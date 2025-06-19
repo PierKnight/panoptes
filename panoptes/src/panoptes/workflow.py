@@ -270,14 +270,14 @@ def run_mxtoolbox(ws: Workspace, domains: tuple, mxtoolbox: Optional[Any]) -> No
             dmarc_info = mxtoolbox.get_action_info_from_domain(domain=domain, action="dmarc")
             # Groom ("clean up") the results structure
             cs = grooming.get_groomed_mxtoolbox_lookup
-            save_json(ws, "mxtoolbox", f"spf-{domain}.json", cs(spf_info.get("spf_json", {})))
-            save_json(ws, "mxtoolbox", f"dmarc-{domain}.json", cs(dmarc_info.get("dmarc_json", {})))
+            save_json(ws, "mxtoolbox", f"spf_{domain}.json", cs(spf_info.get("spf_json", {})))
+            save_json(ws, "mxtoolbox", f"dmarc_{domain}.json", cs(dmarc_info.get("dmarc_json", {})))
 
             # Save images if they exist in the response
             if (spf_img := spf_info.get("spf_image")) is not None:
-                spf_img.save(ws.file("mxtoolbox", f"spf-{domain}.png"))
+                spf_img.save(ws.file("mxtoolbox", f"spf_{domain}.png"))
             if (dmarc_img := dmarc_info.get("dmarc_image")) is not None:
-                dmarc_img.save(ws.file("mxtoolbox", f"dmarc-{domain}.png"))
+                dmarc_img.save(ws.file("mxtoolbox", f"dmarc_{domain}.png"))
 
 @typechecked
 def run_dnsdumpster(ws: Workspace, domains: tuple, dnsdumpster: Optional[Any]) -> None:
@@ -290,7 +290,7 @@ def run_dnsdumpster(ws: Workspace, domains: tuple, dnsdumpster: Optional[Any]) -
         for domain in domains:
             raw = dnsdumpster.get_dns_records_from_domain(domain)
             clean = grooming.get_groomed_dnsdumpster_info(raw)
-            path = save_json(ws, "dnsdumpster", f"dns_records-{domain}.json", clean)
+            path = save_json(ws, "dnsdumpster", f"dns_records_{domain}.json", clean)
             console.print(f"DNS records saved to [bold blue]{path}[/bold blue]")
 
 @typechecked
