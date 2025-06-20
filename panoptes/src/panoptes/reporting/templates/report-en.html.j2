@@ -7,8 +7,8 @@
 <body>
 <!-- To be later used in the template -->
     <!-- Unique data breaches with description-->
-    {% set breach_dict = {} %}
     {% if data_breaches is defined %}
+        {% set breach_dict = {} %}
         {% for email, breaches in data_breaches.items() %}
             {% for breach in breaches %}
                 {% if breach is defined and 'Title' in breach and 'Description' in breach %}
@@ -33,6 +33,9 @@
 
     <div class="header">
         <img src="https://i.imgur.com/x5MX1ah.png">
+        {% if is_incremental %}
+            <span class="header-incremental">INCREMENTAL</span>
+        {% endif %}
     </div>
     <div class="footer-left">
         OSINT-{{ domain | default('N/A') }} {{ run_datetime.split(' ')[0] if run_datetime is defined }}
@@ -165,6 +168,19 @@
         </table>
     </div>
 
+    {% 
+        if dns_records is defined
+        or images is defined
+        or ssl_check is defined
+        or tech_stack is defined
+        or header_analysis is defined 
+        or subdomains is defined
+        or hosts is defined
+        or asn_dict is defined
+        or compromised_ips is defined
+        or leaked_credentials is defined
+        or breach_dict is defined 
+    %}
     <div class="section" id="investigation">
         <h1>Investigation</h1>
         <p>
@@ -173,6 +189,7 @@
             It's important to note that while a multitude of data sources were queried, only those providing relevant information with potential use for malicious actors are highlighted here.
         </p>
     </div>
+    {% endif %}
 
     {% if dns_records is defined %}
     <div class="section" id="dns-records">

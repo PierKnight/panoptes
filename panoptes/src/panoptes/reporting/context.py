@@ -25,6 +25,7 @@ class ReportContext:
     domain: str  # The domain being analyzed
     run_datetime: str  # When the report was generated
     git_sha: str  # Git commit SHA for version tracking
+    is_incremental: bool = False  # Whether this is an incremental report
     
     # Various security analysis fields with empty defaults
     header_analysis: Dict[str, Any] = field(default_factory=dict)
@@ -49,9 +50,10 @@ class ReportContext:
 class ReportBuilder:
     """Builds security assessment reports from collected workspace data."""
     
-    def __init__(self, imgbb_api_key: Optional[str] = None):
+    def __init__(self, imgbb_api_key: Optional[str] = None, is_incremental: bool = False):
         # Initialize image uploader if API key provided
         self.imgbb = ImgBB(imgbb_api_key) if imgbb_api_key else None
+        self.is_incremental = is_incremental  # Track if this is an incremental report
         if not imgbb_api_key:
             log.warning("No ImgBB API key provided, images will not be uploaded.")
     
@@ -156,7 +158,8 @@ class ReportBuilder:
         ctx = ReportContext(
             domain=workspace.name,
             run_datetime=str(datetime.now()),
-            git_sha=self.get_git_sha()
+            git_sha=self.get_git_sha(),
+            is_incremental=self.is_incremental
         )
         
         # Process each service directory
@@ -187,5 +190,5 @@ def build(workspace: Path, **kwargs) -> Dict[str, Any]:
     Returns:
         Complete report dictionary
     """
-    builder = ReportBuilder(imgbb_api_key=kwargs.get("imgbb_api_key"))
+    builder = ReportBuilder(**kwargs)
     return builder.build(workspace)

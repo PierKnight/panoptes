@@ -43,6 +43,19 @@
     width: 180mm;
 }
 
+.header-incremental {
+    font-family: Arial, sans-serif;
+    font-size: 16pt;
+    color: darkred;
+    position: absolute;
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: bold;
+    text-align: center;
+    justify-content: center;
+}
+
 .footer-left {
     position: running(footer-left);
     font-family: Arial, sans-serif;

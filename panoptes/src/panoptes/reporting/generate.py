@@ -8,11 +8,12 @@ import json
 import datetime
 from typeguard import typechecked
 from jinja2 import Environment, FileSystemLoader
-from deepdiff import DeepDiff
 from panoptes.utils import logging
 from panoptes.utils.console import console
 from .context import build
 from .pdf import html_to_pdf
+from typing import Any
+
 
 # Initialize logging
 log = logging.get(__name__)
@@ -25,7 +26,7 @@ LANGUAGE_TEMPLATES = {
 }
 
 @typechecked
-def write_report_json(workspace: Path, **kwargs) -> Path:
+def write_report_json(workspace: Path, new_data: dict, **kwargs) -> Path:
     """Write the report data to a JSON file in the workspace.
     
     Args:
@@ -35,18 +36,12 @@ def write_report_json(workspace: Path, **kwargs) -> Path:
     Returns:
         Path to the generated JSON file
     """
-    new_data = build(workspace, imgbb_api_key=kwargs.get("imgbb_api_key"))
-    
-    # Handle previous report if exists
-    prev_report = workspace / "report.json"
-    if prev_report.exists():
-        prev_report.rename(workspace / "report.prev.json")
-    
     # Write new report
     json_path = workspace / "report.json"
     json_path.write_text(json.dumps(new_data, indent=2))
     return json_path
 
+@typechecked
 def _get_domain_from_workspace(workspace: Path) -> str:
     """Extract domain name from workspace path.
     
@@ -58,6 +53,7 @@ def _get_domain_from_workspace(workspace: Path) -> str:
     """
     return workspace.name.split(".")[-2]
 
+@typechecked
 def _setup_jinja_environment() -> Environment:
     """Configure and return Jinja2 template environment.
     
@@ -69,38 +65,74 @@ def _setup_jinja_environment() -> Environment:
         autoescape=True,  # Automatic HTML escaping for security
     )
 
-def _generate_diff_report(current_data: dict, workspace: Path) -> dict:
-    """Generate incremental diff report compared to previous run.
-    
-    Args:
-        current_data: Current report data
-        workspace: Workspace directory containing previous report
-        
-    Returns:
-        Dictionary containing only changed data
+@typechecked
+def _dict_diff(d1: Any, d2: Any) -> Any:
     """
-    prev_json_path = workspace / "report.prev.json"
-    if not prev_json_path.exists():
-        log.warning("No previous report found for incremental mode")
-        return current_data
+    Recursively computes the difference between two dictionaries.
+    Returns a dict with keys from d1 whose values are missing or different in d2.
+    Handles nested dicts and lists of basic types or dicts.
+    """
+    if isinstance(d1, dict) and isinstance(d2, dict):
+        diff = {}
+        if "domain" in d1:
+            # We always include the domain in the diff
+            diff["domain"] = d1["domain"]
+        for key in d1:
+            if key not in d2:
+                diff[key] = d1[key]
+            else:
+                nested_diff = _dict_diff(d1[key], d2[key])
+                if nested_diff not in (None, {}, [], False):
+                    diff[key] = nested_diff
+        return diff
 
-    previous_data = json.loads(prev_json_path.read_text())
-    diff = DeepDiff(previous_data, current_data, ignore_order=True)
-    
-    # Create simplified diff structure
-    diff_data = {}
-    for key in diff.get('dictionary_item_added', []):
-        clean_key = key.replace('root.', '')
-        diff_data[clean_key] = current_data[clean_key]
-    for key in diff.get('values_changed', []):
-        clean_key = key.replace('root.', '')
-        diff_data[clean_key] = current_data[clean_key]
-    
-    # Save diff for reference
-    diff_path = workspace / "report.diff.json"
-    diff_path.write_text(json.dumps(diff_data, indent=2))
-    
-    return diff_data
+    elif isinstance(d1, list) and isinstance(d2, list):
+        # Compare lists by content
+        if all(isinstance(item, dict) for item in d1 + d2):
+            # List of dicts: compare each item by index
+            result = []
+            for i in range(len(d1)):
+                if i >= len(d2):
+                    result.append(d1[i])  # Item missing in d2
+                else:
+                    item_diff = _dict_diff(d1[i], d2[i])
+                    if item_diff not in (None, {}, [], False):
+                        result.append(item_diff)
+            return result if result else None
+        else:
+            # List of primitives (e.g., list of strings)
+            return d1 if d1 != d2 else None
+
+    else:
+        # Base case: simple value comparison
+        return d1 if d1 != d2 else None
+
+@typechecked
+def _dict_union(d1: Any, d2: Any) -> Any:
+    """
+    Recursively merges two dictionaries.
+    - Prefers values from d1 when there's a conflict (unless both are dicts or lists).
+    - Merges nested dicts and concatenates lists.
+    """
+    if isinstance(d1, dict) and isinstance(d2, dict):
+        result = dict(d2)  # Start from d2 so d1 can override
+        for key, val1 in d1.items():
+            if key in result:
+                val2 = result[key]
+                result[key] = _dict_union(val1, val2)
+            else:
+                result[key] = val1
+        return result
+
+    elif isinstance(d1, list) and isinstance(d2, list):
+        # Merge lists and deduplicate if they are primitives
+        if all(isinstance(i, (str, int, float)) for i in d1 + d2):
+            return list(dict.fromkeys(d2 + d1))  # d1 takes precedence
+        else:
+            return d2 + d1  # Include all items even if not unique
+
+    # For other types (str, int, etc.), prefer d1's value
+    return d1
 
 @typechecked
 def generate_report(
@@ -133,6 +165,7 @@ def generate_report(
     domain = _get_domain_from_workspace(workspace)
     html_path = workspace / f"osint-report-{domain}-{language}.html"
     pdf_path = workspace / f"osint-report-{domain}-{language}.pdf"
+    report_json_path = workspace / "report.json"
 
     if not export_from_html:
         # Generate fresh HTML report
@@ -141,13 +174,39 @@ def generate_report(
         env.globals["ws"] = workspace  # Make workspace available in templates
 
         # Get current report data
-        json_path = write_report_json(workspace, **kwargs)
-        current_data = json.loads(json_path.read_text())
+        report_dict = build(workspace, imgbb_api_key=kwargs.get("imgbb_api_key"))
 
-        # Handle incremental mode
-        if incremental:
-            current_data = _generate_diff_report(current_data, workspace)
+        merged_report = None
+        incremental_data = None
 
+        # If there is an existing report, merge it (so that we always have all data retrieved)
+        if report_json_path.exists():
+            log.info(f"Loading existing report data from {report_json_path}")
+
+            # Load existing report data
+            old_data = json.loads(report_json_path.read_text())
+
+            # Handle incremental mode
+            if incremental:          
+                incremental_data = _dict_diff(report_dict, old_data)
+                incremental_data["is_incremental"] = True
+                diff = workspace/"report.diff.json"
+                diff.write_text(json.dumps(incremental_data, indent=2)) 
+
+            # Merge old data with new data
+            merged_report = _dict_union(report_dict, old_data)
+        else:
+            if incremental:
+                log.warning("No existing report found for incremental mode, generating full report instead.")
+            merged_report = report_dict
+        
+        current_data = incremental_data if incremental_data else merged_report 
+
+        if "is_incremental" in report_dict:
+            del report_dict["is_incremental"]  # We don't need this in the json file
+
+        write_report_json(workspace, report_dict, **kwargs)
+                
         # Render template with current data
         with console.status("Rendering HTML from template..."):
             html = template.render(current_data)
