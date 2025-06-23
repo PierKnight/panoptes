@@ -422,7 +422,7 @@
     </div>
     {% endif %}
 
-    {% if subdomains is defined %}
+    {% if subdomains_ips is defined %}
     <div class="section" id="subdomains">
         <h2>Subdomains</h2>
         <p>
@@ -517,7 +517,7 @@
                     </tr>
                         {% if info is defined and info|length > 0 %}
                             {% if info['data'] is defined and info['data']|length > 0 %}
-                                {% for service in info.data %}
+                                {% for service in info['data'] %}
                                         <tr class="exposed-service-header">
                                             <td colspan="2">
                                                 <code class="bold-transparent-code">{{ service['port'] if 'port' in service else 'N/A' }}/{{ service['transport'] if 'transport' in service else 'N/A'}}</strong></code><br/>
@@ -525,7 +525,7 @@
                                         </tr>
                                         <tr class="exposed-service-data">
                                             <td colspan="2">
-                                                {% if (service['product'] is defined and service['product']) or (service['os'] is defined and service['os'] != None) %}
+                                                {% if (service['product'] is defined and service['product']) or (service['os'] is defined and service['os']) %}
                                                     <strong><em>Software</em></strong><br/>
                                                     {% if service['product'] is defined and service['product'] %}
                                                         &emsp;{{ service['product'] }}{% if service['version'] is defined and service['version'] %}/{{ service['version'] }}{% endif %}<br/>
@@ -630,23 +630,31 @@
         </p>
         {% if compromised_ips|length > 0 %}
             {% for ip, info_list in compromised_ips.items() %}
-                <table>
+                <table class="compromised-host-table">
+                    <!-- IP Row -->
                     <tr class="ip-row">
-                        <td colspan="2">
+                        <td>
                             <code class="bold-transparent-code">{{ ip }}</code>
                         </td>
                     </tr>
-                    <tr><th>Date</th><th>Comment</th></tr>
+
+                    <!-- Header Row with explicit widths -->
+                    <tr>
+                        <th>Date</th>
+                        <th>Comment</th>
+                    </tr>
+
                     {% for info in info_list %}
-                        <tr>
-                            <td style="width: 30%;">{{ info['reportedAt'] if info is defined and 'reportedAt' in info else '' }}</td>
-                            <td>
-                                {% if info is defined and 'comment' in info and info['comment'] %}
-                                    {{ info['comment'] }}
-                                {% else %}
-                                    <em>No comment available</em>
-                                {% endif %}
-                        </tr>
+                    <tr class="compromised-host-info">
+                        <td class="compromised-host-date">{{ info['reportedAt'] if info is defined and 'reportedAt' in info else 'N/A' }}</td>
+                        <td class="compromised-host-comment">
+                            {% if info is defined and 'comment' in info and info['comment'] %}
+                                {{ info['comment'] }}
+                            {% else %}
+                                <em>No comment available</em>
+                            {% endif %}
+                        </td>
+                    </tr>
                     {% endfor %}
                 </table>
             {% endfor %}

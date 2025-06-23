@@ -111,8 +111,9 @@ def _dict_diff(d1: Any, d2: Any) -> Any:
 def _dict_union(d1: Any, d2: Any) -> Any:
     """
     Recursively merges two dictionaries.
-    - Prefers values from d1 when there's a conflict (unless both are dicts or lists).
-    - Merges nested dicts and concatenates lists.
+    - Prefers values from d1 when there's a conflict
+    - Merges nested dicts
+    - Deduplicates lists of dictionaries using unique identifiers
     """
     if isinstance(d1, dict) and isinstance(d2, dict):
         result = dict(d2)  # Start from d2 so d1 can override
@@ -125,11 +126,23 @@ def _dict_union(d1: Any, d2: Any) -> Any:
         return result
 
     elif isinstance(d1, list) and isinstance(d2, list):
-        # Merge lists and deduplicate if they are primitives
-        if all(isinstance(i, (str, int, float)) for i in d1 + d2):
-            return list(dict.fromkeys(d2 + d1))  # d1 takes precedence
-        else:
-            return d2 + d1  # Include all items even if not unique
+        # Special handling for known deduplication fields
+        if d1 and isinstance(d1[0], dict) and "name" in d1[0]:
+            # Data breaches list - deduplicate by "name"
+            merged = {item["name"]: item for item in d2}
+            for item in d1:
+                merged[item["name"]] = item
+            return list(merged.values())
+            
+        elif d1 and isinstance(d1[0], dict) and "port" in d1[0]:
+            # Exposed ports list - deduplicate by "port"
+            merged = {item["port"]: item for item in d2}
+            for item in d1:
+                merged[item["port"]] = item
+            return list(merged.values())
+            
+        # For other lists, use new values only
+        return d1
 
     # For other types (str, int, etc.), prefer d1's value
     return d1
@@ -206,6 +219,7 @@ def generate_report(
             del report_dict["is_incremental"]  # We don't need this in the json file
 
         write_report_json(workspace, report_dict, **kwargs)
+        write_report_json(workspace, current_data, **kwargs)
                 
         # Render template with current data
         with console.status("Rendering HTML from template..."):

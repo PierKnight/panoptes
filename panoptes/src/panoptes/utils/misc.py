@@ -170,7 +170,7 @@ def get_ips_from_hosts(hosts: list[str], max_workers: int = 20, timeout: int = 1
     Returns:
         dict[str, list[str]]: Dictionary mapping hostnames to lists of IP addresses.
     """
-    ip_addresses = {}
+    subdomains_ips = {}
     
     # Define a helper function to process each host
     def process_host(host):
@@ -191,15 +191,18 @@ def get_ips_from_hosts(hosts: list[str], max_workers: int = 20, timeout: int = 1
             try:
                 host, ips = future.result()
                 if ips:  # Only add hosts that resolved successfully
-                    ip_addresses[host] = ips
+                    subdomains_ips[host] = ips
             except concurrent.futures.TimeoutError:
                 host = future_to_host[future]
                 log.error(f"DNS resolution timed out for {host}")
             except Exception as e:
                 host = future_to_host[future]
                 log.error(f"Exception while processing {host}: {e}")
-    
-    return ip_addresses
+
+    # Order by key (hostname)
+    subdomains_ips = dict(sorted(subdomains_ips.items()))
+
+    return subdomains_ips
 
 @typechecked
 def aggregate_values_from_dict_with_no_duplicates(dictionary: dict) -> list:

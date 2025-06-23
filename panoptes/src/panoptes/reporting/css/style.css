@@ -244,6 +244,7 @@ pre {
 .ip-row {
     background-color: #0b4697;
     color: #f2f2f2;
+    width: 100%;
 }
 
 .bold-transparent-code {
@@ -400,6 +401,24 @@ pre {
 
 
 .section {
+    max-width: 100%;
     page-break-before: always;
     break-before: always;
+}
+
+/* Compromised Hosts */
+
+.compromised-host-table {
+    width: 100%;
+    table-layout: auto;
+    border-collapse: collapse;
+}
+
+.compromised-host-comment {
+    word-break: break-all;
+}
+
+.compromised-host-date {
+    /* Arbitrary small width to make sure the column won't take more space than needed */
+    width: 5%;
 }

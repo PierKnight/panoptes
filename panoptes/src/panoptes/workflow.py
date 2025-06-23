@@ -143,7 +143,7 @@ def run_collect(cfg: Dict[str, Any], domains: tuple, mail_domain: Optional[str],
         if "subdomains" in steps_to_run:
             save_subdomains(ws, subdomains)
 
-    # IP-based steps
+    ## Get IPs from subdomains
     ips = []
     if subdomains:
         subdomain_ips = get_ips_from_subdomains(ws, subdomains)
@@ -152,6 +152,8 @@ def run_collect(cfg: Dict[str, Any], domains: tuple, mail_domain: Optional[str],
             run_abuseipdb(ws, ips, clients.get("abuseipdb"))
         if "shodan" in steps_to_run:
             run_shodan(ws, ips, clients.get("shodan"))
+    
+ 
 
     # Credentials/breaches steps
     credentials_path = None
@@ -276,8 +278,10 @@ def run_mxtoolbox(ws: Workspace, domains: tuple, mxtoolbox: Optional[Any]) -> No
             # Save images if they exist in the response
             if (spf_img := spf_info.get("spf_image")) is not None:
                 spf_img.save(ws.file("mxtoolbox", f"spf_{domain}.png"))
+                console.print(f"SPF image saved to [bold blue]{ws.file('mxtoolbox', f'spf_{domain}.png')}[/bold blue]")
             if (dmarc_img := dmarc_info.get("dmarc_image")) is not None:
                 dmarc_img.save(ws.file("mxtoolbox", f"dmarc_{domain}.png"))
+                console.print(f"DMARC image saved to [bold blue]{ws.file('mxtoolbox', f'dmarc_{domain}.png')}[/bold blue]")
 
 @typechecked
 def run_dnsdumpster(ws: Workspace, domains: tuple, dnsdumpster: Optional[Any]) -> None:

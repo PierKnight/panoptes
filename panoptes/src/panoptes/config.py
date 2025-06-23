@@ -52,5 +52,5 @@ def load() -> dict:
     cfg["base_dir"].mkdir(parents=True, exist_ok=True)
 
     cfg["email_without_domain_regex"] = r"[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`{|}~-]+)*@"
-    cfg["haveibeenpwned_request_delay_in_seconds"] = 1
+    cfg["haveibeenpwned_request_delay_in_seconds"] = 1.5
     return cfg
