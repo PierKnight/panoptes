@@ -328,7 +328,7 @@ def run_sslshopper(ws: Workspace, website_url: str, sslshopper: Optional[Any]) -
 @typechecked
 def get_subdomains(domains: tuple, clients: Dict[str, Any]) -> List[str]:
     """
-    Fuses results from multiple sources (C99, VirusTotal, IntelX) to enumerate subdomains.
+    Merges results from multiple sources (C99, VirusTotal, IntelX) to enumerate subdomains.
     """
     subdomains = set()
     for domain in domains:
@@ -466,7 +466,9 @@ def run_intelx(ws: Workspace, cfg: Dict[str, Any], mail_domain: str, intelx: Opt
                 log.error("Intelligent search export result is empty")
         if stop_search:
             break
-        console.print(f"[bold yellow]Running IntelX's search also with ascending relevance sorting since export limit size was reached...[/bold yellow]")
+        if sort == 2:
+            # Prints only once, when the first search is done
+            console.print(f"[bold yellow]Running IntelX's search also with ascending relevance sorting since export limit size was reached...[/bold yellow]")
 
     # Sorting and storing discovered credentials
     with console.status("[bold green]Sorting credentials..[/bold green]"):
