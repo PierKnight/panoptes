@@ -100,12 +100,18 @@
 /* Table of Contents */
 /* TODO */
 
-.client-domain {
-    color: #0b4697; /* Or any color that contrasts with your image */
+.client-domain-iei, .client-domain-unical {
     font-size: 32pt; /* Adjust size as needed */
     font-family: Arial, Helvetica, sans-serif;
     font-weight: bold;
-    /* You can add more styling here */
+}
+
+.client-domain-iei {
+    color: #0b4697; 
+}
+
+.client-domain-unical {
+    color: #b80000; 
 }
 
 
@@ -205,19 +211,28 @@ pre {
     margin-bottom: 10px;
 }
 
+/* DNS Records */
+
 .record-table {
     border-collapse: collapse;
-}
-.record-table th,
-.record-table td {
-    text-align: left;
-    padding: 8px;
-    border: 1px solid #ddd;
+    border-spacing: 0;
+    table-layout: fixed;
+    width: 100%;
     word-wrap: break-word;
 }
+
+.record-table th,
+.record-table td {
+    box-sizing: border-box;
+    padding: 8px;
+    border: 1px solid #ddd;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .record-table th:nth-child(1),
 .record-table td:nth-child(1) {
-    width: 30%;
+    width: 40%;
 }
 .record-table th:nth-child(2),
 .record-table td:nth-child(2) {
@@ -229,12 +244,21 @@ pre {
 }
 .record-table th:nth-child(4),
 .record-table td:nth-child(4) {
-    width: 40%;
-}
-.record-table th {
-    background-color: #f2f2f2;
+    width: 30%;
 }
 
+/* TXT Records */
+.txt-record {
+    background-color: #f8f9fa; /* Light gray background */
+    border-left: 4px solid #0b4697; 
+    padding: 8px 12px;
+    margin: 5px 0;
+    font-family: 'Courier New', monospace; 
+    font-size: 10pt;
+    word-break: break-all; 
+    overflow-wrap: break-word; 
+    border-radius: 3px; /* Slightly rounded corners */
+}
 
 /* Shodan table */
 .host-table {

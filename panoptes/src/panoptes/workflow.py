@@ -167,7 +167,7 @@ def run_collect(cfg: Dict[str, Any], domains: tuple, mail_domain: Optional[str],
     log.info("Investigation finished in %.1fs", (datetime.now() - started).total_seconds())
 
 @typechecked
-def run_report(cfg: Dict[str, Any], domain: str, incremental: bool, language: str, export_from_html: bool) -> None:
+def run_report(cfg: Dict[str, Any], domain: str, incremental: bool, language: str, export_from_html: bool, theme: str) -> None:
     """ Generates HTML and PDF reports for the completed investigation.
 
     Args:
@@ -181,7 +181,7 @@ def run_report(cfg: Dict[str, Any], domain: str, incremental: bool, language: st
     if incremental and export_from_html:
         log.warning("Incremental mode is not compatible with HTML export. Ignoring incremental flag.")
         incremental = False
-    html, pdf = reporting.generate.generate_report(ws_path, incremental, language, export_from_html, imgbb_api_key=imgbb_api_key)
+    html, pdf = reporting.generate.generate_report(ws_path, incremental, language, export_from_html, theme, imgbb_api_key=imgbb_api_key)
     log.info("HTML written to %s", html)
     log.info("PDF written to %s", pdf)
 

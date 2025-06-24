@@ -32,7 +32,12 @@
     {% set total_vulns = (hosts.values() | map(attribute='total_vulns') | sum) if hosts is defined else 0 %}
 
     <div class="header">
-        <img src="https://i.imgur.com/x5MX1ah.png">
+        {% if theme == "iei" %}
+            <img src="{{headers['iei-ita']}}">
+        {% elif theme == "unical" %}
+            <img src="{{headers['unical-ita']}}">
+        {% endif %}
+        
         {% if is_incremental %}
             <span class="header-incremental">INCREMENTALE</span>
         {% endif %}
@@ -46,10 +51,17 @@
     </div>
 
     <div class="title-page">
-        <img class="title-image" src="https://i.ibb.co/dwQT2yj7/Open-Source-Intelligence-Report.png" alt="Report di Intelligence da Fonti Aperte" class="title-image">
-        <div class="title-overlay">
-            <span class="client-domain">{{ domain | default('N/A') }}</span>
-        </div>
+        {% if theme == "iei" %}
+            <img class="title-image" alt="Open Source Intelligence Report" src="{{titlepages['iei']}}">
+            <div class="title-overlay">
+                <span class="client-domain-iei">{{ domain | default('N/A') }}</span>
+            </div>
+        {% elif theme == "unical" %}
+            <img class="title-image" alt="Open Source Intelligence Report" src="{{titlepages['unical']}}">
+            <div class="title-overlay">
+                <span class="client-domain-unical">{{ domain | default('N/A') }}</span>
+            </div>
+        {% endif %}
     </div>
 
 
@@ -215,7 +227,9 @@
                 {% else %}
                     {% if record_type == 'txt' %}
                         {% for txt_record in content %}
-                            <div><code>{{ txt_record }}</code></div>
+                            <div class="txt-record">
+                                <span>{{ txt_record }}</span>
+                            </div>
                         {% endfor %}
                     {% else %}
                         <table class="record-table">
@@ -637,8 +651,8 @@
 
                     <!-- Header Row with explicit widths -->
                     <tr>
-                        <th>Date</th>
-                        <th>Comment</th>
+                        <th>Data</th>
+                        <th>Commento</th>
                     </tr>
 
                     {% for info in info_list %}

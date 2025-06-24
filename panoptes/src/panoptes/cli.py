@@ -99,7 +99,14 @@ def collect(domains, filter, mail_domain, website_url):
     default=False,
     show_default=True,
 )
-def report(domain, incremental, language, export_from_html):
+@click.option(
+    "--theme",
+    help="Theme for the report. If not specified, defaults to 'iei' (Internet & Idee).",
+    default="iei",
+    show_default=True,
+    type=click.Choice(["iei", "unical"], case_sensitive=False),
+)
+def report(domain, incremental, language, export_from_html, theme):
     """Generate a report (HTML and its PDF export) for the collected data in DOMAIN."""
     cfg = config.load()
     console.print(f"You ran the report command for domain: [bold blue]{domain}[/bold blue]")
@@ -113,7 +120,7 @@ def report(domain, incremental, language, export_from_html):
         if language != "en":
             console.print(f" [bold italic red]- Language[/bold italic red]: The report will be generated in [bold blue]{language}[/bold blue] language.")
         console.print()
-    workflow.run_report(cfg, domain, incremental, language, export_from_html)
+    workflow.run_report(cfg, domain, incremental, language, export_from_html, theme)
     
 
 @cli.command()

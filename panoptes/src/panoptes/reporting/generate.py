@@ -153,6 +153,7 @@ def generate_report(
     incremental: bool = False,
     language: str = "en",
     export_from_html: bool = False,
+    theme: str = "iei",
     **kwargs
 ) -> tuple[Path, Path]:
     """Generate HTML and PDF reports from collected data.
@@ -176,6 +177,9 @@ def generate_report(
         raise FileNotFoundError(f"Workspace {workspace} not found")
 
     domain = _get_domain_from_workspace(workspace)
+    headers_url_path = Path(__file__).parent / "templates" / "designs" / f"headers-url.json"
+    titlepages_url_path = Path(__file__).parent / "templates" / "designs" / f"titlepages-url.json"
+    
     html_path = workspace / f"osint-report-{domain}-{language}.html"
     pdf_path = workspace / f"osint-report-{domain}-{language}.pdf"
     report_json_path = workspace / "report.json"
@@ -185,6 +189,19 @@ def generate_report(
         env = _setup_jinja_environment()
         template = env.get_template(LANGUAGE_TEMPLATES[language])
         env.globals["ws"] = workspace  # Make workspace available in templates
+
+        # Setup design variables
+        if not headers_url_path.exists() or not titlepages_url_path.exists():
+            log.error(f"Required design files not found: {headers_url_path} or {titlepages_url_path}")
+            raise FileNotFoundError(f"Design files not found in {TEMPLATE_DIR}")
+    
+        if headers_url_path.exists():
+            env.globals["headers"] = json.loads(headers_url_path.read_text())
+        
+        if titlepages_url_path.exists():
+            env.globals["titlepages"] = json.loads(titlepages_url_path.read_text())
+
+        env.globals["theme"] = theme
 
         # Get current report data
         report_dict = build(workspace, imgbb_api_key=kwargs.get("imgbb_api_key"))
