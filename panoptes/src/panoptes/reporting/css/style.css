@@ -337,13 +337,15 @@ pre {
 }
 
 .vulnerability-summary-vulns {
-    background-color: #6989c5;
+    background-color: #0b4697;
     color: #f2f2f2;
     font-weight: bold;
     width: 20%;
 }
 
 .vulnerability-summary-risk {
+    background-color: #0b4697;
+    color: #f2f2f2;
     font-weight: bold;
     width: 30%;
     text-align: center;

@@ -180,19 +180,6 @@
         </table>
     </div>
 
-    {% 
-        if dns_records is defined
-        or images is defined
-        or ssl_check is defined
-        or tech_stack is defined
-        or header_analysis is defined 
-        or subdomains is defined
-        or hosts is defined
-        or asn_dict is defined
-        or compromised_ips is defined
-        or leaked_credentials is defined
-        or breach_dict is defined 
-    %}
     <div class="section" id="investigation">
         <h1>Investigation</h1>
         <p>
@@ -201,12 +188,9 @@
             It's important to note that while a multitude of data sources were queried, only those providing relevant information with potential use for malicious actors are highlighted here.
         </p>
     </div>
-    {% endif %}
 
-    {% if dns_records is defined %}
     <div class="section" id="dns-records">
         <h2>Domain</h2>
-        {% set domain_header_displayed = true %}
 
         <h3>DNS Records</h3>
         <p>
@@ -214,108 +198,103 @@
             These records provide essential technical details, such as the <strong>IP addresses</strong> associated with the domain (<strong>A</strong> and <strong>AAAA</strong> records), <strong>mail servers</strong> (<strong>MX</strong>), <strong>name servers</strong> (<strong>NS</strong>), and other key configurations like <strong>CNAME</strong> and <strong>TXT records</strong>.  
             By analyzing <strong>DNS records</strong>, it is possible to gain an in-depth understanding of the domain’s configuration and its underlying <strong>technical infrastructure</strong>, helping to identify potential <strong>points of interest</strong> or <strong>vulnerabilities</strong>.
         </p>
-
-        {% for dns_domain, dns_data in dns_records.items() %}
-
-            {% if dns_records|length > 1 %}
-                <h4>{{ dns_domain }}</h4>
-            {% endif %}
-            {% for record_type, content in dns_data.items() %}
-                <h5>{{ record_type.upper() }} Records</h5>
-                {% if content is not defined or content|length == 0 %}
-                    <p><em>No {{ record_type }} records found for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
-                {% else %}
-                    {% if record_type == 'txt' %}
-                        {% for txt_record in content %}
-                            <div class="txt-record">
-                                <span>{{ txt_record }}</span>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <table class="record-table">
-                            {% if loop.first %}
-                                <tr>
-                                    <th>Host</th>
-                                    <th>IP Address</th>
-                                    <th>ASN</th>
-                                    <th>ASN Name</th>
-                                </tr>
-                            {% endif %}
-                            {% for record in content %}
-                                <tr>
-                                    <td><code>{{ record.host | default('N/A') }}</code></td>
-                                    <td>
-                                        {% if record.ips is defined and record.ips and record.ips[0] is defined and 'ip' in record.ips[0] %}
-                                            {{ record.ips[0].ip }}
-                                        {% else %}
-                                            N/A
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if record.ips is defined and record.ips and record.ips[0] is defined and 'asn' in record.ips[0] %}
-                                            {{ record.ips[0].asn }}
-                                        {% else %}
-                                            N/A
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if record.ips is defined and record.ips and record.ips[0] is defined and 'asn_name' in record.ips[0] %}
-                                            {{ record.ips[0].asn_name }}
-                                        {% else %}
-                                            N/A
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </table>
-                    {% endif %}
+        {% if dns_records is defined and dns_records|length > 0 %}
+            {% for dns_domain, dns_data in dns_records.items() %}
+                {% if dns_records|length > 1 %}
+                    <h4>{{ dns_domain }}</h4>
                 {% endif %}
+                {% for record_type, content in dns_data.items() %}
+                    <h5>{{ record_type.upper() }} Records</h5>
+                    {% if content is not defined or content|length == 0 %}
+                        <p><em>No {{ record_type }} records found for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
+                    {% else %}
+                        {% if record_type == 'txt' %}
+                            {% for txt_record in content %}
+                                <div class="txt-record">
+                                    <span>{{ txt_record }}</span>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <table class="record-table">
+                                {% if loop.first %}
+                                    <tr>
+                                        <th>Host</th>
+                                        <th>IP Address</th>
+                                        <th>ASN</th>
+                                        <th>ASN Name</th>
+                                    </tr>
+                                {% endif %}
+                                {% for record in content %}
+                                    <tr>
+                                        <td><code>{{ record.host | default('N/A') }}</code></td>
+                                        <td>
+                                            {% if record.ips is defined and record.ips and record.ips[0] is defined and 'ip' in record.ips[0] %}
+                                                {{ record.ips[0].ip }}
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if record.ips is defined and record.ips and record.ips[0] is defined and 'asn' in record.ips[0] %}
+                                                {{ record.ips[0].asn }}
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if record.ips is defined and record.ips and record.ips[0] is defined and 'asn_name' in record.ips[0] %}
+                                                {{ record.ips[0].asn_name }}
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </table>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
             {% endfor %}
-
-        {% endfor %}
-
-        
+        {% else %}
+            <p><em>No DNS records found for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
+        {% endif %}   
     </div>
-    {% endif %}
     
-    {% if images is defined and ('dmarc' in images or 'spf' in images) %}
     <div class="section" id="spf-dmarc">
-        {% if not domain_header_displayed %}
-            <h2>Domain</h2>
-            {% set domain_header_displayed = true %}
-        {% endif %}
         <h3>DMARC & SPF</h3>
         <p>
             A useful check is the analysis of <strong>DMARC</strong> and <strong>SPF</strong> records. These email authentication mechanisms are <strong>essential</strong> for protecting a domain from <strong>abuse</strong> and <strong>phishing</strong> attacks. DMARC (<em>Domain-based Message Authentication, Reporting, and Conformance</em>) allows domain owners to specify how emails <em>failing authentication checks</em> should be handled, and provides detailed reports on unauthorized use attempts. On the other hand, SPF (Sender Policy Framework) defines <em>which servers are authorized to send emails</em> on behalf of the domain.
         </p>
-        {% if 'dmarc' in images %}
-            <h4 id="dmarc">DMARC</h4>
-            {% for dmarc_domain, dmarc_img in images['dmarc'].items() %}
-                {% if images['dmarc'] | length > 1 %} <!-- i.e., multiple images because of multiple domains -->
-                    <h5>{{ dmarc_domain }}</h5>              
-                {% endif %}
-                <img src="{{ images['dmarc'][dmarc_domain] }}" alt="DMARC Info" class="screenshot">
-            {% endfor %}
-        {% endif %}
+        {% if images is defined %}
+            {% if 'dmarc' in images %}
+                <h4 id="dmarc">DMARC</h4>
+                {% for dmarc_domain, dmarc_img in images['dmarc'].items() %}
+                    {% if images['dmarc'] | length > 1 %} <!-- i.e., multiple images because of multiple domains -->
+                        <h5>{{ dmarc_domain }}</h5>              
+                    {% endif %}
+                    <img src="{{ images['dmarc'][dmarc_domain] }}" alt="DMARC Info" class="screenshot">
+                {% endfor %}
+            {% else %}
+                <p><em>No DMARC records found for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
+            {% endif %}
 
-        {% if 'spf' in images %}
-            <h4 id="spf">SPF</h4>
-            {% for spf_domain, spf_img in images['spf'].items() %}
-                {% if images['spf'] | length > 1 %} <!-- i.e., multiple images because of multiple domains -->
-                   <h5>{{ spf_domain }}</h5>                 
-                {% endif %}
-                <img src="{{ images['spf'][spf_domain] }}" alt="DMARC Info" class="screenshot">
-            {% endfor %}
+            {% if 'spf' in images %}
+                <h4 id="spf">SPF</h4>
+                {% for spf_domain, spf_img in images['spf'].items() %}
+                    {% if images['spf'] | length > 1 %} <!-- i.e., multiple images because of multiple domains -->
+                    <h5>{{ spf_domain }}</h5>                 
+                    {% endif %}
+                    <img src="{{ images['spf'][spf_domain] }}" alt="DMARC Info" class="screenshot">
+                {% endfor %}
+            {% else %}
+                <p><em>No SPF records found for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
+            {% endif %}
+        {% else %}
+            <p><em>No DMARC or SPF images available for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
         {% endif %}
     </div>
-    {% endif %}
 
-    {% if ssl_check is defined %}
     <div class="section" id="ssl-check">
-        {% if not domain_header_displayed %}
-            <h2>Domain</h2>
-            {% set domain_header_displayed = true %}
-        {% endif %}
         <h3>SSL Check</h3>
         <p>
             SSL/TLS certificates are another crucial component in assessing a domain's security and reliability. They ensure that communications between the website and its users are <strong>encrypted</strong> and <strong>secure</strong>. Analyzing these certificates allows verification of their <strong>validity</strong>, <strong>expiration date</strong>, and the issuing <strong>certificate authority</strong>. Proper configuration can prevent <strong>man-in-the-middle attacks</strong> and ensure <strong>sensitive information</strong> is protected during transit.
@@ -328,7 +307,7 @@
         </ul>
         <h4 id="server-certificate-info">Server Certificate Info</h4>
         <p>
-        {% if ssl_check is defined %}
+        {% if ssl_check is defined and ssl_check|length > 0 %}
             {% if 'Common name' in ssl_check and ssl_check['Common name'] %}
                 <strong>Domain:</strong> <code>{{ ssl_check['Common name'] }}</code><br>
             {% endif %}
@@ -376,74 +355,79 @@
             {% if 'Issuer' in ssl_check and ssl_check['Issuer'] %}
                 <strong>Issuer:</strong> <code>{{ ssl_check['Issuer'] }}</code><br>
             {% endif %}
+        {% else %}
+            <em>No SSL certificate information available for <strong>{{ domain | default('N/A') }}</strong>.</em>
         {% endif %}
         </p>
         <h4 id="certificate-chain">Certificate Chain</h4>
         {% if images is defined and 'ssl_check' in images %}
             <img src="{{ images.ssl_check }}" alt="SSL Chain" class="screenshot">
+        {% else %}
+            <p><em>No SSL certificate chain image available for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
         {% endif %}
     </div>
-    {% endif %}
 
-    {% if tech_stack is defined %}
     <div class="section" id="technology-stack">
-        {% if not domain_header_displayed %}
-            <h2>Domain</h2>
-            {% set domain_header_displayed = true %}
-        {% endif %}
         <h3>Technology Stack</h3>
-        <table>
-            <tr>
-                <th>Category</th>
-                <th>Employed Tech(s)</th>
-            </tr>
-            {% if tech_stack is defined %}
-                {% for category, technologies in tech_stack.items() %}
-                    <tr>
-                        <td>{{ category }}</td>
-                        <td>
-                            {% if technologies|length > 0 %}
-                                {{ technologies|join('<br/>')|safe }}
-                            {% else %}
-                                <em>No technologies found</em>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-            {% endif %}
-        </table>
-    </div>
-    {% endif %}
-
-    {% if header_analysis is defined %}
-    <div class="section" id="header-analysis">
-        {% if not domain_header_displayed %}
-            <h2>Domain</h2>
-            {% set domain_header_displayed = true %}
-        {% endif %}
-        <h3>Header Analysis</h3>
-        {% if header_analysis|length > 0 %}
-            <p>The analysis of the headers revealed the absence of important security headers:</p>
+        <p>
+            Understanding the <strong>tech stack</strong> of a web application is <strong>crucial</strong> for gaining valuable insights into its <strong>capabilities</strong> and <strong>security posture</strong>. The technology components used, such as <strong>programming languages</strong>, <strong>frameworks</strong>, <strong>databases</strong>, and <strong>server infrastructure</strong>, can help identify potential <strong>vulnerabilities</strong> and <strong>attack vectors</strong>. Knowing which <strong>CMS</strong> or <strong>content delivery network</strong> is in use aids in understanding how <strong>data</strong> is managed and where sensitive information may reside. This knowledge improves the accuracy of threat assessments and supports the creation of tailored <strong>mitigation strategies</strong>. Therefore, analyzing the web application’s tech stack is a fundamental step for obtaining more <strong>comprehensive</strong> and <strong>actionable</strong> information.
+        </p>
+        {% if tech_stack is defined %}
             <table>
-                <tr><th>Header</th><th>Description</th></tr>
-                {% for header, value in header_analysis.items() %}
-                    <tr><td><code>{{ header }}</code></td><td>{{ value }}</td></tr>
-                {% endfor %}
+                <tr>
+                    <th>Category</th>
+                    <th>Employed Tech(s)</th>
+                </tr>
+                    {% for category, technologies in tech_stack.items() %}
+                        <tr>
+                            <td>{{ category }}</td>
+                            <td>
+                                {% if technologies|length > 0 %}
+                                    {{ technologies|join('<br/>')|safe }}
+                                {% else %}
+                                    <em>No technologies found</em>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
             </table>
         {% else %}
-            <p>All important security headers are present, indicating that the web application has implemented the necessary measures to enhance its security posture.</p>
+            <p><em>No technology stack information available for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
         {% endif %}
     </div>
-    {% endif %}
 
-    {% if subdomains_ips is defined %}
+    
+    <div class="section" id="header-analysis">
+        <h3>Header Analysis</h3>
+        <p>
+            The analysis of HTTP headers is a crucial step in assessing the security posture of a web application. HTTP headers can provide valuable information about the server's configuration, security policies, and potential vulnerabilities. This section examines the presence or absence of important security headers that can help mitigate common web vulnerabilities.
+        </p>
+        {% if header_analysis is defined %}
+            {% if "safe" in header_analysis %}
+                <p>All important security headers are present, indicating that the web application has implemented the necessary measures to enhance its security posture.</p>
+            {% elif header_analysis|length > 0 %}
+                <p>The analysis of the headers revealed the absence of important security headers:</p>
+                <table>
+                    <tr><th>Header</th><th>Description</th></tr>
+                    {% for header, value in header_analysis.items() %}
+                        <tr><td><code>{{ header }}</code></td><td>{{ value }}</td></tr>
+                    {% endfor %}
+                </table>
+                
+            {% endif %}
+        {% else %}
+            <p><em>No header analysis data available for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
+        {% endif %}
+    </div>
+    
+
     <div class="section" id="subdomains">
         <h2>Subdomains</h2>
         <p>
             Here is a list of subdomains discovered during the investigation with respective IP addresses.<br>
             These subdomains may provide additional attack vectors or insights into the web infrastructure of <strong>{{ domain | default('N/A') }}</strong>
         </p>
-        {% if subdomains_ips|length > 0 %}
+        {% if subdomains_ips is defined and subdomains_ips|length > 0 %}
             <table class="subdomain-table">
                 <tr><th>Subdomain</th><th>IP Address(es)</th></tr>
                 {% for subdomain, ips in subdomains_ips.items() %}
@@ -463,163 +447,159 @@
             <p><em>No subdomains were found for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
         {% endif %}
     </div>
-    {% endif %}
 
 
-    {% if hosts is defined %} 
     <div class="section" id="hosts">
         <h2>Hosts</h2>
         <p>In this chapter, all information related to the <strong>hosts</strong> identified during the investigation is collected and analyzed. Each host represents a potential <strong>access point</strong> and a valuable <strong>source of data</strong> for better understanding the target's <strong>network</strong> and <strong>resources</strong>. This chapter provides a clear and in-depth view of each host, highlighting <strong>critical elements</strong> that could be exploited in a potential attack.</p>
-        {% if hosts|length > 0 %}
-            <h3 class="vulerability-summary-header">
-                Summary of Vulnerabilities
-            </h3>
-            <table class="vulnerability-summary-table">
-                {% if total_vulns > 0.0 %}
-                    <tr>
-                        <th class="vulnerability-summary-ip">IP Address</th>
-                        <th class="vulnerability-summary-vulns">Num. of vulnerabilities</th>
-                        <th class="vulnerability-summary-risk">Risk level</th>
-                    </tr>
-                    {% for ip, info in hosts.items() %}
-                        {% if info is defined and 'vulns' in info and info['vulns']|length > 0 %}
+            {% if hosts is defined and hosts|length > 0 %}
+                <h3 class="vulerability-summary-header">
+                    Summary of Vulnerabilities
+                </h3>
+                <table class="vulnerability-summary-table">
+                    {% if total_vulns > 0.0 %}
                         <tr>
-                            <td><code>{{ ip }}</code></td>
-                            <td>{{ info['vulns']|length }}</td>
-                            <td class="vulnerability-score
-                                                {% if info['cvss_average'] is defined and info['cvss_average'] >= 9 %}
+                            <th class="vulnerability-summary-ip">IP Address</th>
+                            <th class="vulnerability-summary-vulns">Num. of vulnerabilities</th>
+                            <th class="vulnerability-summary-risk">Risk level</th>
+                        </tr>
+                        {% for ip, info in hosts.items() %}
+                            {% if info is defined and 'vulns' in info and info['vulns']|length > 0 %}
+                            <tr>
+                                <td><code>{{ ip }}</code></td>
+                                <td>{{ info['vulns']|length }}</td>
+                                <td class="vulnerability-score
+                                                    {% if info['cvss_average'] is defined and info['cvss_average'] >= 9 %}
+                                                        critical
+                                                    {% elif info['cvss_average'] is defined and info['cvss_average'] >= 7 %}
+                                                        high
+                                                    {% elif info['cvss_average'] is defined and info['cvss_average'] >= 4 %}
+                                                        medium
+                                                    {% else %}
+                                                        low
+                                                    {% endif %}
+                                ">
+                                    <strong>
+                                        {% if info['cvss_average'] is defined and info['cvss_average'] >= 9 %}
+                                            critical
+                                        {% elif info['cvss_average'] is defined and info['cvss_average'] >= 7 %}
+                                            high
+                                        {% elif info['cvss_average'] is defined and info['cvss_average'] >= 4 %}
+                                            medium
+                                        {% else %}
+                                            low
+                                        {% endif %}
+                                    </strong>
+                                </td>
+                            </tr>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <em>No vulnerabilities found for any host.</em>
+                    {% endif %}
+                </table>
+                {% for ip, info in hosts.items() %}
+                    <table class="host-table">
+                        <tr class="ip-row">
+                            <td colspan="2">
+                                <code class="bold-transparent-code">{{ ip }}</code><br/>
+                                {% if (info is defined and ((info['city'] is defined and info['city']) or (info['country_name'] is defined and info['country_name']))) %}
+                                Location:
+                                {% if info['city'] is defined and info['city'] %}{{ info['city'] }}{% endif %}
+                                {% if (info['city'] is defined and info['city']) and (info['country_name'] is defined and info['country_name']) %}-{% endif %}
+                                {% if info['country_name'] is defined and info['country_name'] %}{{ info['country_name'] }}{% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                            {% if info is defined and info|length > 0 %}
+                                {% if info['data'] is defined and info['data']|length > 0 %}
+                                    {% for service in info['data'] %}
+                                            <tr class="exposed-service-header">
+                                                <td colspan="2">
+                                                    <code class="bold-transparent-code">{{ service['port'] if 'port' in service else 'N/A' }}/{{ service['transport'] if 'transport' in service else 'N/A'}}</strong></code><br/>
+                                                </td>
+                                            </tr>
+                                            <tr class="exposed-service-data">
+                                                <td colspan="2">
+                                                    {% if (service['product'] is defined and service['product']) or (service['os'] is defined and service['os']) %}
+                                                        <strong><em>Software</em></strong><br/>
+                                                        {% if service['product'] is defined and service['product'] %}
+                                                            &emsp;{{ service['product'] }}{% if service['version'] is defined and service['version'] %}/{{ service['version'] }}{% endif %}<br/>
+                                                        {% endif %}
+                                                        {% if service['os'] is defined and service['os'] != None %}
+                                                            &emsp;{{ service['os'] }}<br/>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                    {% if service['data'] is defined and service['data'] %}
+                                                        <strong><em>Data</em></strong><br/>
+                                                        <pre style="font-size: 12px;">{{ service['data'] }}</pre>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                    {% endfor %}
+                                {% endif %}
+                                {% if info['asn'] is defined and info['asn'] %}
+                                    <tr class="asn-info">
+                                        <td colspan="2">
+                                            <strong><em>ASN Information</em></strong><br/>
+                                            &emsp;<code class="bold-transparent-code">{{ info['asn'] }}</code>
+                                            {% if info['isp'] is defined and info['isp'] %} ({{ info['isp'] }}){% endif %}<br/>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                                {% if info['vulns'] is defined and info['vulns']|length > 0 %}
+                                    {% for cve in info['vulns'] %}
+                                        <tr class="vulnerability-row">
+                                            <td class="vulnerability-info">
+                                                {% if loop.first %}
+                                                    <strong><em>Vulnerabilities</em></strong><br/>
+                                                {% endif %}
+                                                <strong>{{ cve['cve_id'] if cve is defined and 'cve_id' in cve else '' }}</strong><br/>
+                                                {{ cve['summary'] if cve is defined and 'summary' in cve else '' }}
+                                            </td>
+                                            <td class="vulnerability-score
+                                                {% if cve is defined and 'cvss' in cve and cve['cvss'] >= 9 %}
                                                     critical
-                                                {% elif info['cvss_average'] is defined and info['cvss_average'] >= 7 %}
+                                                {% elif cve is defined and 'cvss' in cve and cve['cvss'] >= 7 %}
                                                     high
-                                                {% elif info['cvss_average'] is defined and info['cvss_average'] >= 4 %}
+                                                {% elif cve is defined and 'cvss' in cve and cve['cvss'] >= 4 %}
                                                     medium
                                                 {% else %}
                                                     low
                                                 {% endif %}
-                            ">
-                                <strong>
-                                    {% if info['cvss_average'] is defined and info['cvss_average'] >= 9 %}
-                                        critical
-                                    {% elif info['cvss_average'] is defined and info['cvss_average'] >= 7 %}
-                                        high
-                                    {% elif info['cvss_average'] is defined and info['cvss_average'] >= 4 %}
-                                        medium
-                                    {% else %}
-                                        low
-                                    {% endif %}
-                                </strong>
-                            </td>
-                        </tr>
-                        {% endif %}
-                    {% endfor %}
-                {% else %}
-                    <em>No vulnerabilities found for any host.</em>
-                {% endif %}
-            </table>
-            {% for ip, info in hosts.items() %}
-                <table class="host-table">
-                    <tr class="ip-row">
-                        <td colspan="2">
-                            <code class="bold-transparent-code">{{ ip }}</code><br/>
-                            {% if (info is defined and ((info['city'] is defined and info['city']) or (info['country_name'] is defined and info['country_name']))) %}
-                            Location:
-                            {% if info['city'] is defined and info['city'] %}{{ info['city'] }}{% endif %}
-                            {% if (info['city'] is defined and info['city']) and (info['country_name'] is defined and info['country_name']) %}-{% endif %}
-                            {% if info['country_name'] is defined and info['country_name'] %}{{ info['country_name'] }}{% endif %}
-                            {% endif %}
-                        </td>
-                    </tr>
-                        {% if info is defined and info|length > 0 %}
-                            {% if info['data'] is defined and info['data']|length > 0 %}
-                                {% for service in info['data'] %}
-                                        <tr class="exposed-service-header">
-                                            <td colspan="2">
-                                                <code class="bold-transparent-code">{{ service['port'] if 'port' in service else 'N/A' }}/{{ service['transport'] if 'transport' in service else 'N/A'}}</strong></code><br/>
+                                            ">
+                                                <strong>{{ cve['cvss'] if cve is defined and 'cvss' in cve else '' }}</strong>
                                             </td>
                                         </tr>
-                                        <tr class="exposed-service-data">
-                                            <td colspan="2">
-                                                {% if (service['product'] is defined and service['product']) or (service['os'] is defined and service['os']) %}
-                                                    <strong><em>Software</em></strong><br/>
-                                                    {% if service['product'] is defined and service['product'] %}
-                                                        &emsp;{{ service['product'] }}{% if service['version'] is defined and service['version'] %}/{{ service['version'] }}{% endif %}<br/>
-                                                    {% endif %}
-                                                    {% if service['os'] is defined and service['os'] != None %}
-                                                        &emsp;{{ service['os'] }}<br/>
-                                                    {% endif %}
-                                                {% endif %}
-                                                {% if service['data'] is defined and service['data'] %}
-                                                    <strong><em>Data</em></strong><br/>
-                                                    <pre style="font-size: 12px;">{{ service['data'] }}</pre>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                {% endfor %}
-                            {% endif %}
-                            {% if info['asn'] is defined and info['asn'] %}
-                                <tr class="asn-info">
-                                    <td colspan="2">
-                                        <strong><em>ASN Information</em></strong><br/>
-                                        &emsp;<code class="bold-transparent-code">{{ info['asn'] }}</code>
-                                        {% if info['isp'] is defined and info['isp'] %} ({{ info['isp'] }}){% endif %}<br/>
-                                    </td>
-                                </tr>
-                            {% endif %}
-                            {% if info['vulns'] is defined and info['vulns']|length > 0 %}
-                                {% for cve in info['vulns'] %}
-                                    <tr class="vulnerability-row">
-                                        <td class="vulnerability-info">
-                                            {% if loop.first %}
-                                                <strong><em>Vulnerabilities</em></strong><br/>
-                                            {% endif %}
-                                            <strong>{{ cve['cve_id'] if cve is defined and 'cve_id' in cve else '' }}</strong><br/>
-                                            {{ cve['summary'] if cve is defined and 'summary' in cve else '' }}
-                                        </td>
-                                        <td class="vulnerability-score
-                                            {% if cve is defined and 'cvss' in cve and cve['cvss'] >= 9 %}
-                                                critical
-                                            {% elif cve is defined and 'cvss' in cve and cve['cvss'] >= 7 %}
-                                                high
-                                            {% elif cve is defined and 'cvss' in cve and cve['cvss'] >= 4 %}
-                                                medium
-                                            {% else %}
-                                                low
-                                            {% endif %}
-                                        ">
-                                            <strong>{{ cve['cvss'] if cve is defined and 'cvss' in cve else '' }}</strong>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr class="vulnerability-info">
+                                        <td colspan="2">
+                                            <strong><em>No vulnerabilities found for this host.</em></strong>
                                         </td>
                                     </tr>
-                                {% endfor %}
+                                {% endif %}
                             {% else %}
-                                <tr class="vulnerability-info">
+                                <tr class="no-data-row">
                                     <td colspan="2">
-                                        <strong><em>No vulnerabilities found for this host.</em></strong>
+                                        <strong><em>No data found for this host.</em></strong>
                                     </td>
                                 </tr>
                             {% endif %}
-                        {% else %}
-                            <tr class="no-data-row">
-                                <td colspan="2">
-                                    <strong><em>No data found for this host.</em></strong>
-                                </td>
-                            </tr>
-                        {% endif %}
-                    </tr>
-                </table>
-            {% endfor %}
-        {% else %}
-        <em>
-            No hosts were found for <strong>{{ domain | default('N/A') }}</strong>.
-        </em>
-        {% endif %}
+                        </tr>
+                    </table>
+                {% endfor %}
+            {% else %}
+                <p>
+                    <em>No hosts were found for <strong>{{ domain | default('N/A') }}</strong>.</em>
+                </p>
+            {% endif %}
     </div>
-    {% endif %}
 
-    {% if asn_dict is defined %}
     <div class="section" id="hosting-providers">
         <h2>Hosting Providers</h2>
         <p>This section highlights the <strong>hosting providers</strong> identified from all public data sources. These insights can be valuable in understanding how an attacker might exploit these providers. Specifically, malicious actors may use providers known for <strong>poor security</strong> or <strong>tolerance</strong> of illegal activities to host command and control servers, distribute malware, or launch phishing campaigns. Choosing the right provider can also aid in evading <strong>security measures</strong>, reducing the likelihood of detection or being blocked.</p>
-        {% if asn_dict|length > 0 %}
+        {% if asn_dict is defined and asn_dict|length > 0 %}
             <table>
                 <tr><th>ASN</th><th>ISP</th></tr>
                 {% for asn, isp in asn_dict.items() %}
@@ -633,16 +613,15 @@
             <p><em>No hosting providers were found for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
         {% endif %}
     </div>
-    {% endif %}
 
-    {% if compromised_ips is defined %}
+
     <div class="section" id="compromised-hosts">
         <h2>Compromised Hosts</h2>
         <p>
             <p>This section includes <strong>hosts</strong> belonging to the organization that are reported for potentially malicious activities by public IP reputation sources. The analysis aims to verify if one or more IP addresses associated with the company have been identified as involved in <strong>anomalous</strong> or <strong>abusive behavior</strong> (e.g., suspicious activities, spam, scanning, unauthorized access attempts). These reports, while not always confirming an actual compromise, represent a <strong>risk indicator</strong> and may suggest the need for further internal checks on the systems involved.
             Only hosts compromised within the last 365 days are shown.</p>
         </p>
-        {% if compromised_ips|length > 0 %}
+        {% if compromised_ips is defined and compromised_ips|length > 0 %}
             {% for ip, info_list in compromised_ips.items() %}
                 <table class="compromised-host-table">
                     <!-- IP Row -->
@@ -676,15 +655,14 @@
             <p><em>No compromised hosts were found for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
         {% endif %}
     </div>
-    {% endif %}
 
-    {% if leaked_credentials is defined %}
+
     <div class="section">
         <h2 id="compromised-credentials">Compromised Credentials</h2>
         <p>
             This section contains all compromised credentials identified during the OSINT investigation. Credential compromise is one of the most severe cybersecurity threats, as it can give attackers direct access to <strong>sensitive internal resources</strong>, <strong>critical systems</strong>, and <strong>confidential data</strong>. The collected information comes from <strong>known breaches</strong>, <strong>data leaks</strong>, and <strong>illicit sharing platforms</strong>, providing an overview of the risks the company might face. This analysis aims to identify potential <strong>entry points</strong> for future attacks and suggest <strong>mitigation measures</strong> to protect the integrity of the company's systems.
         </p>
-        {% if leaked_credentials|length > 0 %}
+        {% if leaked_credentials is defined and leaked_credentials|length > 0 %}
             <h3 id="summary-of-leaked-credentials">Summary of Leaked Credentials</h3>
             <table>
                 <tr><th>Email</th><th>Count</th></tr>
@@ -731,16 +709,14 @@
             <p><em>No compromised credentials were found for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
         {% endif %}
     </div>
-    {% endif %}
 
-    {% if breach_dict is defined %}
     <div class="section" id="data-breach-details">
         <h2>Data Breach Details</h2>
         <p>
         This chapter provides <strong>detailed information</strong> on the <strong>data breaches</strong> affecting the <strong>company</strong>.
         These details, gathered from <strong>public sources</strong> and <strong>data leak databases</strong>, offer a clear overview of <strong>security incidents</strong> and help to identify <strong>vulnerable areas</strong> within the organization.
         </p>
-        {% if breach_dict|length > 0 %}
+        {% if breach_dict is defined and breach_dict|length > 0 %}
             <table>
                 <tr><th>Title</th><th>Description</th></tr>
                 {% for title, description in breach_dict.items() %}
@@ -754,7 +730,6 @@
             <p><em>No data breaches found for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
         {% endif %}
     </div>
-    {% endif %}
 
     <!--
     <div class="section" id="conclusion">

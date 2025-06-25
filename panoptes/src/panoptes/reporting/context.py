@@ -42,10 +42,9 @@ class ReportContext:
     images: Dict[str, Any] = field(default_factory=dict)  # Uploaded analysis images
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert the dataclass to a dictionary, removing empty values."""
+        """Convert the dataclass to a dictionary"""
         data = self.__dict__.copy()
-        # Filter out empty/null values to keep output clean
-        return {k: v for k, v in data.items() if v not in [None, {}, "", []]}
+        return {k: v for k, v in data.items() if v}  # Filter out empty fields
 
 class ReportBuilder:
     """Builds security assessment reports from collected workspace data."""

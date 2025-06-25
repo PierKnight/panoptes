@@ -206,8 +206,8 @@ def generate_report(
         # Get current report data
         report_dict = build(workspace, imgbb_api_key=kwargs.get("imgbb_api_key"))
 
-        merged_report = None
-        incremental_data = None
+        merged_report = dict()
+        incremental_data = dict()
 
         # If there is an existing report, merge it (so that we always have all data retrieved)
         if report_json_path.exists():
@@ -220,8 +220,8 @@ def generate_report(
             if incremental:          
                 incremental_data = _dict_diff(report_dict, old_data)
                 incremental_data["is_incremental"] = True
-                diff = workspace/"report.diff.json"
-                diff.write_text(json.dumps(incremental_data, indent=2)) 
+                diff_path = workspace/"report.diff.json"
+                diff_path.write_text(json.dumps(incremental_data, indent=2)) 
 
             # Merge old data with new data
             merged_report = _dict_union(report_dict, old_data)
@@ -230,13 +230,12 @@ def generate_report(
                 log.warning("No existing report found for incremental mode, generating full report instead.")
             merged_report = report_dict
         
-        current_data = incremental_data if incremental_data else merged_report 
+        current_data = incremental_data if len(incremental_data) > 0 else merged_report 
 
         if "is_incremental" in report_dict:
             del report_dict["is_incremental"]  # We don't need this in the json file
 
-        write_report_json(workspace, report_dict, **kwargs)
-        write_report_json(workspace, current_data, **kwargs)
+        write_report_json(workspace, merged_report, **kwargs)
                 
         # Render template with current data
         with console.status("Rendering HTML from template..."):
