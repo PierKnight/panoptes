@@ -201,10 +201,15 @@ pre {
 }
 
 .data-leak {
-    background-color: #fce4ec;
-    border-left: 5px solid #e91e63;
-    padding: 5px;
+    background-color: #fce4ec; 
+    border-left: 4px solid #e91e63; 
+    padding: 8px 12px;
+    margin: 5px 0;
+    font-family: 'Courier New', monospace; 
     font-size: 10pt;
+    word-break: break-all; 
+    overflow-wrap: break-word; 
+    border-radius: 3px; /* Slightly rounded corners */
 }
 
 .data-leak-container {
@@ -298,19 +303,19 @@ pre {
 }
 
 .vulnerability-score.critical {
-    background-color: #c0392b;
+    background-color: darkred;
     color: #fff;
 }
 .vulnerability-score.high {
-    background-color: #e67e22; 
+    background-color: red; 
     color: #fff;
 }
 .vulnerability-score.medium {
-    background-color: #f7ca18; 
-    color: #222;
+    background-color: #ffc404; 
+    color: #000;
 }
 .vulnerability-score.low {
-    background-color: #27ae60; 
+    background-color: #0874c4; 
     color: #fff;
 }
 
@@ -385,7 +390,8 @@ pre {
 }
 
 .summary-risk.medium {
-    background-color: orange;
+    background-color: #ffc404;
+    color: #000;
 }
 
 .summary-risk.low {
@@ -393,7 +399,7 @@ pre {
 }
 
 .summary-risk.info {
-    background-color: blue;
+    background-color: #0874c4;
 }
 
 /* Leaked Credentials */

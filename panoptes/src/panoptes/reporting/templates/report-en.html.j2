@@ -210,7 +210,7 @@
 
         <h3>DNS Records</h3>
         <p>
-            Another important source of information for domain analysis is represented by <strong>DNS records</strong>.  
+            An important source of information for domain analysis is represented by <strong>DNS records</strong>.  
             These records provide essential technical details, such as the <strong>IP addresses</strong> associated with the domain (<strong>A</strong> and <strong>AAAA</strong> records), <strong>mail servers</strong> (<strong>MX</strong>), <strong>name servers</strong> (<strong>NS</strong>), and other key configurations like <strong>CNAME</strong> and <strong>TXT records</strong>.  
             By analyzing <strong>DNS records</strong>, it is possible to gain an in-depth understanding of the domain’s configuration and its underlying <strong>technical infrastructure</strong>, helping to identify potential <strong>points of interest</strong> or <strong>vulnerabilities</strong>.
         </p>
@@ -286,7 +286,7 @@
         {% endif %}
         <h3>DMARC & SPF</h3>
         <p>
-            Another useful check is the analysis of <strong>DMARC</strong> and <strong>SPF</strong> records. These email authentication mechanisms are <strong>essential</strong> for protecting a domain from <strong>abuse</strong> and <strong>phishing</strong> attacks. DMARC (<em>Domain-based Message Authentication, Reporting, and Conformance</em>) allows domain owners to specify how emails <em>failing authentication checks</em> should be handled, and provides detailed reports on unauthorized use attempts. On the other hand, SPF (Sender Policy Framework) defines <em>which servers are authorized to send emails</em> on behalf of the domain.
+            A useful check is the analysis of <strong>DMARC</strong> and <strong>SPF</strong> records. These email authentication mechanisms are <strong>essential</strong> for protecting a domain from <strong>abuse</strong> and <strong>phishing</strong> attacks. DMARC (<em>Domain-based Message Authentication, Reporting, and Conformance</em>) allows domain owners to specify how emails <em>failing authentication checks</em> should be handled, and provides detailed reports on unauthorized use attempts. On the other hand, SPF (Sender Policy Framework) defines <em>which servers are authorized to send emails</em> on behalf of the domain.
         </p>
         {% if 'dmarc' in images %}
             <h4 id="dmarc">DMARC</h4>
@@ -721,8 +721,8 @@
                     </div>
                     <h5>Data Leaks</h5>
                     {% for leak in leaks %}
-                        <div class="data-leak-container">
-                            <code class="data-leak">{{ leak }}</code>
+                        <div class="data-leak">
+                            <span>{{ leak }}</span>
                         </div>
                     {% endfor %}
                 </div>

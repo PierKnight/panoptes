@@ -212,7 +212,7 @@
 
         <h3>Record DNS</h3>
         <p>
-            Un'altra importante fonte di informazioni per l'analisi del dominio è rappresentata dai <strong>record DNS</strong>.  
+            Un'importante fonte di informazioni per l'analisi del dominio è rappresentata dai <strong>record DNS</strong>.  
             Questi record forniscono dettagli tecnici essenziali, come gli <strong>indirizzi IP</strong> associati al dominio (<strong>A</strong> e <strong>AAAA</strong>), i <strong>server di posta</strong> (<strong>MX</strong>), i <strong>name server</strong> (<strong>NS</strong>) e altre configurazioni chiave come <strong>CNAME</strong> e <strong>TXT</strong>.  
             Analizzando i <strong>record DNS</strong>, è possibile ottenere una comprensione approfondita della configurazione del dominio e della sua <strong>infrastruttura tecnica</strong> sottostante, aiutando a identificare potenziali <strong>punti di interesse</strong> o <strong>vulnerabilità</strong>.
         </p>
@@ -283,7 +283,7 @@
         {% endif %}
         <h3>DMARC & SPF</h3>
         <p>
-            Another useful check is the analysis of <strong>DMARC</strong> and <strong>SPF</strong> records. These email authentication mechanisms are <strong>essential</strong> for protecting a domain from <strong>abuse</strong> and <strong>phishing</strong> attacks. DMARC (<em>Domain-based Message Authentication, Reporting, and Conformance</em>) allows domain owners to specify how emails <em>failing authentication checks</em> should be handled, and provides detailed reports on unauthorized use attempts. On the other hand, SPF (Sender Policy Framework) defines <em>which servers are authorized to send emails</em> on behalf of the domain.
+            Un controllo utile è l'analisi dei record <strong>DMARC</strong> e <strong>SPF</strong>. Questi meccanismi di autenticazione email sono <strong>essenziali</strong> per proteggere un dominio da <strong>abusi</strong> e attacchi di <strong>phishing</strong>. DMARC (<em>Domain-based Message Authentication, Reporting, and Conformance</em>) permette ai proprietari del dominio di specificare come dovrebbero essere gestite le email <em>che non superano i controlli di autenticazione</em>, e fornisce report dettagliati sui tentativi di utilizzo non autorizzato. D'altra parte, SPF (Sender Policy Framework) definisce <em>quali server sono autorizzati a inviare email</em> per conto del dominio.
         </p>
         {% if 'dmarc' in images %}
             <h4 id="dmarc">DMARC</h4>
@@ -327,11 +327,11 @@
         <p>
         {% if ssl_check is defined %}
             {% if 'Common name' in ssl_check and ssl_check['Common name'] %}
-                <strong>Dominio:</strong> <code>{{ ssl_check['Common name'] }}</code><br>
+                <strong>Domain:</strong> <code>{{ ssl_check['Common name'] }}</code><br>
             {% endif %}
             
             {% if 'Common name' in ssl_check and ssl_check['Common name']|length > 0 %}
-                <strong>Nome comune:</strong><code>{{ ssl_check['Common name'] }}</code><br>
+                <strong>Common name:</strong><code>{{ ssl_check['Common name'] }}</code><br>
             {% endif %}
             
             {% if 'SANs' in ssl_check and ssl_check['SANs'] %}
@@ -343,35 +343,35 @@
             {% endif %}
             
             {% if 'Organization' in ssl_check and ssl_check['Organization'] %}
-                <strong>Organizzazione:</strong> <code>{{ ssl_check['Organization'] }}</code><br>
+                <strong>Organization:</strong> <code>{{ ssl_check['Organization'] }}</code><br>
             {% endif %}
             
             {% if 'Location' in ssl_check and ssl_check['Location'] %}
                 {% if ssl_check['Location'] is string %}
-                    <strong>Località:</strong> <code>{{ ssl_check['Location'] }}</code><br>
+                    <strong>Location:</strong> <code>{{ ssl_check['Location'] }}</code><br>
                 {% else %}
-                    <strong>Località:</strong> <code>{{ ssl_check['Location']|join(', ') }}</code><br>
+                    <strong>Location:</strong> <code>{{ ssl_check['Location']|join(', ') }}</code><br>
                 {% endif %}
             {% endif %}
 
             {% if 'Valid from' in ssl_check and ssl_check['Valid from'] %}
-                <strong>Valido dal:</strong> <code>{{ ssl_check['Valid from'] }}</code><br>
+                <strong>Valid from:</strong> <code>{{ ssl_check['Valid from'] }}</code><br>
             {% endif %}
             
             {% if 'Valid until' in ssl_check and ssl_check['Valid until'] %}
-                <strong>Valido fino al:</strong> <code>{{ ssl_check['Valid until'] }}</code><br>
+                <strong>Valid until:</strong> <code>{{ ssl_check['Valid until'] }}</code><br>
             {% endif %}
             
             {% if 'Serial Number' in ssl_check and ssl_check['Serial Number'] %}
-                <strong>Numero seriale:</strong> <code>{{ ssl_check['Serial Number'] }}</code><br>
+                <strong>Serial Number:</strong> <code>{{ ssl_check['Serial Number'] }}</code><br>
             {% endif %}
             
             {% if 'Signature Algorithm' in ssl_check and ssl_check['Signature Algorithm'] %}
-                <strong>Algoritmo di firma:</strong> <code>{{ ssl_check['Signature Algorithm'] }}</code><br>
+                <strong>Signature Algorithm:</strong> <code>{{ ssl_check['Signature Algorithm'] }}</code><br>
             {% endif %}
             
             {% if 'Issuer' in ssl_check and ssl_check['Issuer'] %}
-                <strong>Emittente:</strong> <code>{{ ssl_check['Issuer'] }}</code><br>
+                <strong>Issuer:</strong> <code>{{ ssl_check['Issuer'] }}</code><br>
             {% endif %}
         {% endif %}
         </p>
@@ -718,8 +718,8 @@
                     </div>
                     <h5>Data Leak</h5>
                     {% for leak in leaks %}
-                        <div class="data-leak-container">
-                            <code class="data-leak">{{ leak }}</code>
+                        <div class="data-leak">
+                            <span>{{ leak }}</span>
                         </div>
                     {% endfor %}
                 </div>
