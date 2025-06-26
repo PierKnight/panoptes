@@ -389,11 +389,12 @@ def run_abuseipdb(ws: Workspace, ips: List[str], abuseipdb: Optional[Any]) -> No
             log.warning("No abuse reports found for the given IPs in AbuseIPDB")
 
 
-@typechecked
 def run_shodan(ws: Workspace, ips: List[str], shodan: Optional[Any]) -> None:
     if not shodan:
         return
+
     ips_info = {}
+    cve_cache = {}  # Initialize a shared CVE cache
 
     with Progress(console=console) as progress:
         task = progress.add_task("Retrieving hosts info...", total=len(ips))
@@ -402,10 +403,9 @@ def run_shodan(ws: Workspace, ips: List[str], shodan: Optional[Any]) -> None:
             try:
                 result = shodan.host(ip)
                 if result:
-                    groomed = grooming.get_groomed_shodan_info(result)
+                    groomed = grooming.get_groomed_shodan_info(result, cve_cache)
                     ips_info[ip] = groomed
             except Exception as e:
-                # Use console.log(), which *is* progress-aware
                 console.log(f"[red]Shodan failed for {ip}: {e}[/]", exc_info=True)
             progress.update(task, advance=1)
 
@@ -416,6 +416,7 @@ def run_shodan(ws: Workspace, ips: List[str], shodan: Optional[Any]) -> None:
             reverse=True
         ))
         save_json(ws, "shodan", "shodan_info.json", ips_info)
+
 
 @typechecked
 def run_intelx(ws: Workspace, cfg: Dict[str, Any], mail_domain: str, intelx: Optional[Any]) -> Optional[Path]:

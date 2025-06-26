@@ -6,6 +6,7 @@ from typing import Any
 import re
 import requests as http
 import json
+from typing import Optional
 
 from panoptes.utils import logging
 
@@ -14,7 +15,7 @@ log = logging.get(__name__)
 from typeguard import typechecked
 
 @typechecked
-def get_groomed_shodan_info(raw: dict):
+def get_groomed_shodan_info(raw: dict, cve_cache: Optional[dict] = None) -> dict:
     """
     Extract just the bits we need from the big Shodan response.
 
@@ -69,56 +70,63 @@ def get_groomed_shodan_info(raw: dict):
         new_data.append(to_add)
 
     groomed_info["data"] = new_data
-    
-    # CVEs section
-    new_vulns = list()
+
+    new_vulns = []
     total_vulns = 0
 
     if "vulns" not in raw:
         log.info("No CVEs found in the host information.")
         groomed_info["total_vulns"] = 0
         return groomed_info
-    
+
     vulns = raw["vulns"]
     total_cvss = 0.0
 
     for cve in vulns:
         total_vulns += 1
-        to_add = dict()
+
+        if cve in cve_cache:
+            log.info(f"Using cached CVE data for {cve}")
+            result_json = cve_cache[cve]
+        else:
+            try:
+                response = http.get(f"https://cvedb.shodan.io/cve/{cve}")
+                response.raise_for_status()
+                result_json = response.json()
+                cve_cache[cve] = result_json  # Cache the result
+            except http.exceptions.RequestException as e:
+                log.error(f"Network error during CVE request: {e}")
+                continue
+            except json.JSONDecodeError:
+                log.error("Failed to parse CVE response JSON.")
+                continue
+            except Exception as e:
+                log.error(f"Unexpected error while performing CVE request: {e}")
+                continue
+
+        to_add = {
+            "cve_id": result_json.get("cve_id", cve),
+            "summary": result_json.get("summary", "")
+        }
+
         try:
-            response = http.get(f"https://cvedb.shodan.io/cve/{cve}")
-            response.raise_for_status()
-
-            result_json = response.json()
-
-            to_add["cve_id"] = result_json.get("cve_id", cve)  # Use the provided CVE ID if not found in response
-            to_add["summary"] = result_json.get("summary", "")
             cvss = float(result_json.get("cvss", ""))
-            to_add["cvss"] = cvss
+        except (TypeError, ValueError):
+            cvss = 0.0
 
-            total_cvss += cvss
+        to_add["cvss"] = cvss
+        total_cvss += cvss
+        new_vulns.append(to_add)
 
-            new_vulns.append(to_add)
-
-            # Sort the vulnerabilities by CVSS score in descending order
-            new_vulns.sort(key=lambda x: x.get("cvss", 0), reverse=True)
-        except http.exceptions.RequestException as e:
-            log.error(f"Network error during CVE request: {e}")
-        except json.JSONDecodeError:
-            log.error("Failed to parse CVE response JSON.")
-        except Exception as e:
-            log.error(f"Unexpected error while performing CVE request: {e}")
-
+    new_vulns.sort(key=lambda x: x.get("cvss", 0), reverse=True)
     groomed_info["vulns"] = new_vulns
     groomed_info["total_vulns"] = len(new_vulns)
 
-    if total_cvss > 0:
-        cvss_average = total_cvss / len(new_vulns) if new_vulns else 0.0
-        cvss_average = round(cvss_average, 2)
-        groomed_info["cvss_average"] = cvss_average
-
+    if total_cvss > 0 and new_vulns:
+        groomed_info["cvss_average"] = round(total_cvss / len(new_vulns), 2)
 
     return groomed_info
+
 
 
 @typechecked

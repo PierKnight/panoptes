@@ -13,6 +13,8 @@ from panoptes.utils.console import console
 from .context import build
 from .pdf import html_to_pdf
 from typing import Any
+from bs4 import BeautifulSoup
+import uuid
 
 
 # Initialize logging
@@ -147,6 +149,64 @@ def _dict_union(d1: Any, d2: Any) -> Any:
     # For other types (str, int, etc.), prefer d1's value
     return d1
 
+def add_table_of_contents(html_content: str) -> str:
+    """
+    Add a dynamic table of contents to the HTML report with page numbers.
+    
+    Args:
+        html_content: The HTML content to process
+        
+    Returns:
+        Processed HTML with TOC
+    """
+    soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # Find the TOC div
+    toc_div = soup.find('div', {'id': 'table-of-contents'})
+    if not toc_div:
+        return html_content  # No TOC section found
+    
+    # Find all headings in the document (h1-h4)
+    headings = soup.find_all(['h1', 'h2', 'h3', 'h4'])
+    
+    # Create the TOC structure
+    toc_ul = soup.new_tag('ul')
+    current_ul = toc_ul
+    current_level = 1
+    
+    for heading in headings:
+        # Ensure heading has an ID
+        if not heading.get('id'):
+            heading['id'] = str(uuid.uuid4())
+        
+        # Create TOC entry
+        level = int(heading.name[1])
+        
+        # Adjust UL nesting based on heading level
+        while level > current_level:
+            new_ul = soup.new_tag('ul')
+            current_ul.append(new_ul)
+            current_ul = new_ul
+            current_level += 1
+            
+        while level < current_level:
+            current_ul = current_ul.parent
+            current_level -= 1
+            
+        # Create the TOC item
+        li = soup.new_tag('li')
+        a = soup.new_tag('a', href=f"#{heading['id']}")
+        a.string = heading.get_text()
+        li.append(a)
+        current_ul.append(li)
+    
+    # Add the TOC to the document
+    toc_container = toc_div.find('div', class_='toc')
+    if toc_container:
+        toc_container.append(toc_ul)
+    
+    return str(soup)
+
 @typechecked
 def generate_report(
     workspace: Path,
@@ -220,6 +280,8 @@ def generate_report(
             if incremental:          
                 incremental_data = _dict_diff(report_dict, old_data)
                 incremental_data["is_incremental"] = True
+                html_path = workspace / f"osint-report-{domain}-{language}-incremental-{datetime.datetime.now().strftime('%Y%m%d')}.html"
+                pdf_path = workspace / f"osint-report-{domain}-{language}-incremental-{datetime.datetime.now().strftime('%Y%m%d%')}.pdf"
                 diff_path = workspace/"report.diff.json"
                 diff_path.write_text(json.dumps(incremental_data, indent=2)) 
 
@@ -240,6 +302,7 @@ def generate_report(
         # Render template with current data
         with console.status("Rendering HTML from template..."):
             html = template.render(current_data)
+        
 
         # Ensure workspace exists and write HTML
         workspace.mkdir(parents=True, exist_ok=True)
@@ -250,6 +313,9 @@ def generate_report(
             log.error(f"HTML report {html_path} does not exist")
             raise FileNotFoundError(f"HTML report {html_path} not found")
         html = html_path.read_text()
+
+    with console.status("Adding Table of Contents..."):
+            html = add_table_of_contents(html)  # Add this line
 
     # Generate PDF from HTML
     with console.status("Generating PDF from HTML..."):

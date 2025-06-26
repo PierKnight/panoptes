@@ -64,6 +64,13 @@
         {% endif %}
     </div>
 
+    <div class="section" id="table-of-contents">
+        <h1>Table of Contents</h1>
+        <div class="toc">
+        <!-- This will be populated by the post-processing function -->
+        </div>
+    </div>
+
     <div class="section" id="introduction">
         <h1>Introduction</h1>
         <p><strong>Open Source Intelligence (<em>OSINT</em>)</strong>, is a discipline focused on the <strong>research</strong>, <strong>collection</strong>, and <strong>analysis</strong> of relevant information from publicly accessible sources. These <strong>data</strong>, often available in an <em>unstructured format</em>, are analyzed and correlated to gain a <strong>comprehensive understanding</strong> of the context of interest. In the realm of <strong>OSINT investigations</strong>, significant attention is given to the use of <em>automated techniques</em> to gather data from a wide range of sources, followed by a thorough manual analysis phase aimed at simulating the perspective of a potential <strong>attacker</strong> on the target.</p>
@@ -267,7 +274,7 @@
         </p>
         {% if images is defined %}
             {% if 'dmarc' in images %}
-                <h4 id="dmarc">DMARC</h4>
+                <h4>DMARC</h4>
                 {% for dmarc_domain, dmarc_img in images['dmarc'].items() %}
                     {% if images['dmarc'] | length > 1 %} <!-- i.e., multiple images because of multiple domains -->
                         <h5>{{ dmarc_domain }}</h5>              
@@ -279,7 +286,7 @@
             {% endif %}
 
             {% if 'spf' in images %}
-                <h4 id="spf">SPF</h4>
+                <h4>SPF</h4>
                 {% for spf_domain, spf_img in images['spf'].items() %}
                     {% if images['spf'] | length > 1 %} <!-- i.e., multiple images because of multiple domains -->
                     <h5>{{ spf_domain }}</h5>                 
@@ -305,7 +312,7 @@
             <li><strong>Certificate Authority:</strong> Identifying the issuing authority and verifying its trustworthiness.</li>
             <li><strong>Security Configuration:</strong> Examining security settings, such as the use of strong <strong>encryption protocols</strong> and <strong>HSTS</strong> configurations.</li>
         </ul>
-        <h4 id="server-certificate-info">Server Certificate Info</h4>
+        <h4>Server Certificate Info</h4>
         <p>
         {% if ssl_check is defined and ssl_check|length > 0 %}
             {% if 'Common name' in ssl_check and ssl_check['Common name'] %}
@@ -359,7 +366,7 @@
             <em>No SSL certificate information available for <strong>{{ domain | default('N/A') }}</strong>.</em>
         {% endif %}
         </p>
-        <h4 id="certificate-chain">Certificate Chain</h4>
+        <h4>Certificate Chain</h4>
         {% if images is defined and 'ssl_check' in images %}
             <img src="{{ images.ssl_check }}" alt="SSL Chain" class="screenshot">
         {% else %}
@@ -658,19 +665,19 @@
 
 
     <div class="section">
-        <h2 id="compromised-credentials">Compromised Credentials</h2>
+        <h2>Compromised Credentials</h2>
         <p>
             This section contains all compromised credentials identified during the OSINT investigation. Credential compromise is one of the most severe cybersecurity threats, as it can give attackers direct access to <strong>sensitive internal resources</strong>, <strong>critical systems</strong>, and <strong>confidential data</strong>. The collected information comes from <strong>known breaches</strong>, <strong>data leaks</strong>, and <strong>illicit sharing platforms</strong>, providing an overview of the risks the company might face. This analysis aims to identify potential <strong>entry points</strong> for future attacks and suggest <strong>mitigation measures</strong> to protect the integrity of the company's systems.
         </p>
         {% if leaked_credentials is defined and leaked_credentials|length > 0 %}
-            <h3 id="summary-of-leaked-credentials">Summary of Leaked Credentials</h3>
+            <h3>Summary of Leaked Credentials</h3>
             <table>
                 <tr><th>Email</th><th>Count</th></tr>
                 {% for email, leaks in leaked_credentials.items() %}
                     <tr><td><code>{{ email }}</code></td><td>{{ leaks|length }}</td></tr>
                 {% endfor %}
             </table>
-            <h3 id="leaked-credentials">Leaked Credentials</h3>
+            <h3>Leaked Credentials</h3>
             {% for email, leaks in leaked_credentials.items() %}
                 <div class="leaked">
                     <div class="leaked-start">

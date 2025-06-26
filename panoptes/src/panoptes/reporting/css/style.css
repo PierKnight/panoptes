@@ -98,7 +98,56 @@
 }
 
 /* Table of Contents */
-/* TODO */
+/* Table of Contents */
+.toc {
+    font-family: Arial, sans-serif;
+    margin: 20px 0;
+}
+
+.toc ul {
+    list-style-type: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.toc li {
+    margin: 5px 0;
+    line-height: 1.4;
+}
+
+.toc a {
+    text-decoration: none;
+    color: #333;
+    display: flex;
+    justify-content: space-between;
+}
+
+.toc a:hover {
+    text-decoration: underline;
+}
+
+.toc a::after {
+    content: target-counter(attr(href), page);
+    float: right;
+}
+
+.toc > ul > li > a {
+    font-weight: bold;
+}
+
+.toc ul ul {
+    padding-left: 20px;
+}
+
+.toc ul ul ul {
+    padding-left: 40px;
+}
+
+.toc ul ul ul ul {
+    padding-left: 60px;
+}
+
+
 
 .client-domain-iei, .client-domain-unical {
     font-size: 32pt; /* Adjust size as needed */

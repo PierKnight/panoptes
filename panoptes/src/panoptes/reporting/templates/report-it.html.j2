@@ -64,6 +64,12 @@
         {% endif %}
     </div>
 
+    <div class="section" id="table-of-contents">
+        <h1>Sommario</h1>
+        <div class="toc">
+        <!-- L'indice sarà popolato dalla funzione Python -->
+        </div>
+    </div>
 
     <div class="section" id="introduction">
         <h1>Introduzione</h1>
@@ -264,17 +270,13 @@
     </div>
     
     <div class="section" id="spf-dmarc">
-        {% if not domain_header_displayed %}
-            <h2>Domain</h2>
-            {% set domain_header_displayed = true %}
-        {% endif %}
         <h3>DMARC & SPF</h3>
         <p>
             Un controllo utile è l'analisi dei record <strong>DMARC</strong> e <strong>SPF</strong>. Questi meccanismi di autenticazione email sono <strong>essenziali</strong> per proteggere un dominio da <strong>abusi</strong> e attacchi di <strong>phishing</strong>. DMARC (<em>Domain-based Message Authentication, Reporting, and Conformance</em>) permette ai proprietari del dominio di specificare come dovrebbero essere gestite le email <em>che non superano i controlli di autenticazione</em>, e fornisce report dettagliati sui tentativi di utilizzo non autorizzato. D'altra parte, SPF (Sender Policy Framework) definisce <em>quali server sono autorizzati a inviare email</em> per conto del dominio.
         </p>
         {% if images is defined %}
             {% if 'dmarc' in images %}
-                <h4 id="dmarc">DMARC</h4>
+                <h4>DMARC</h4>
                 {% for dmarc_domain, dmarc_img in images['dmarc'].items() %}
                     {% if images['dmarc'] | length > 1 %} <!-- i.e., multiple images because of multiple domains -->
                         <h5>{{ dmarc_domain }}</h5>              
@@ -286,7 +288,7 @@
             {% endif %}
 
             {% if 'spf' in images %}
-                <h4 id="spf">SPF</h4>
+                <h4>SPF</h4>
                 {% for spf_domain, spf_img in images['spf'].items() %}
                     {% if images['spf'] | length > 1 %} <!-- i.e., multiple images because of multiple domains -->
                     <h5>{{ spf_domain }}</h5>                 
@@ -313,7 +315,7 @@
             <li><strong>Autorità di certificazione:</strong> Identifica l'autorità emittente e verifica la sua affidabilità.</li>
             <li><strong>Configurazione di sicurezza:</strong> Esamina le impostazioni di sicurezza, come l'uso di <strong>protocolli di cifratura robusti</strong> e configurazioni <strong>HSTS</strong>.</li>
         </ul>
-        <h4 id="server-certificate-info">Informazioni sul Certificato del Server</h4>
+        <h4>Informazioni sul Certificato del Server</h4>
         <p>
         {% if ssl_check is defined and ssl_check|length > 0 %}
             {% if 'Common name' in ssl_check and ssl_check['Common name'] %}
@@ -367,7 +369,7 @@
             <em>Nessuna informazione sul certificato SSL disponibile per <strong>{{ domain | default('N/A') }}</strong>.</em>
         {% endif %}
         </p>
-        <h4 id="certificate-chain">Catena di Certificati</h4>
+        <h4>Catena di Certificati</h4>
         {% if images is defined and 'ssl_check' in images %}
             <img src="{{ images.ssl_check }}" alt="Catena SSL" class="screenshot">
         {% else %}
@@ -664,19 +666,19 @@
 
 
     <div class="section">
-        <h2 id="compromised-credentials">Credenziali Compromesse</h2>
+        <h2>Credenziali Compromesse</h2>
         <p>
             Questa sezione contiene tutte le credenziali compromesse identificate durante l'investigazione OSINT. La compromissione delle credenziali è una delle minacce più gravi alla sicurezza informatica, poiché può fornire agli attaccanti l'accesso diretto a <strong>risorse interne sensibili</strong>, <strong>sistemi critici</strong> e <strong>dati confidenziali</strong>. Le informazioni raccolte provengono da <strong>violazioni note</strong>, <strong>data leak</strong> e <strong>piattaforme di condivisione illecite</strong>, fornendo una panoramica dei rischi che l'azienda potrebbe affrontare. Questa analisi mira a identificare potenziali <strong>punti di ingresso</strong> per futuri attacchi e suggerire <strong>misure di mitigazione</strong> per proteggere l'integrità dei sistemi aziendali.
         </p>
         {% if leaked_credentials is defined and leaked_credentials|length > 0 %}
-            <h3 id="summary-of-leaked-credentials">Riepilogo delle Credenziali Compromesse</h3>
+            <h3>Riepilogo delle Credenziali Compromesse</h3>
             <table>
                 <tr><th>Email</th><th>Conteggio</th></tr>
                 {% for email, leaks in leaked_credentials.items() %}
                     <tr><td><code>{{ email }}</code></td><td>{{ leaks|length }}</td></tr>
                 {% endfor %}
             </table>
-            <h3 id="leaked-credentials">Credenziali Compromesse</h3>
+            <h3>Credenziali Compromesse</h3>
             {% for email, leaks in leaked_credentials.items() %}
                 <div class="leaked">
                     <div class="leaked-start">

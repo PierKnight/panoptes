@@ -45,5 +45,8 @@ class Shodan:
             log.error(f"Network error during Shodan host request: {e}")
             return {}
         except Exception as e:
+            if "No information available" in str(e):
+                log.info(f"No information available for IP: {ip}")
+                return {}
             log.error(f"Unexpected error while performing Shodan host request: {e}")
             return {}
