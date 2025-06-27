@@ -403,12 +403,12 @@
         {% endif %}
     </div>
 
-    
     <div class="section" id="header-analysis">
         <h3>Header Analysis</h3>
         <p>
-            The analysis of HTTP headers is a crucial step in assessing the security posture of a web application. HTTP headers can provide valuable information about the server's configuration, security policies, and potential vulnerabilities. This section examines the presence or absence of important security headers that can help mitigate common web vulnerabilities.
+            The <strong>analysis of security headers</strong> helps detect <strong>misconfigurations</strong> or <strong>critical omissions</strong> that may expose an application to <strong>common attacks</strong> such as <strong>XSS</strong>, <strong>clickjacking</strong>, and <strong>man-in-the-middle</strong>. Checking them is essential to ensure proper <strong>server-side protection</strong>.
         </p>
+
         {% if header_analysis is defined %}
             {% if "safe" in header_analysis %}
                 <p>All important security headers are present, indicating that the web application has implemented the necessary measures to enhance its security posture.</p>
@@ -417,16 +417,15 @@
                 <table>
                     <tr><th>Header</th><th>Description</th></tr>
                     {% for header, value in header_analysis.items() %}
-                        <tr><td><code>{{ header }}</code></td><td>{{ value }}</td></tr>
+                        <tr><td><code>{{ header }}</code></td><td>{{ value["en"] }}</td></tr>
                     {% endfor %}
                 </table>
-                
             {% endif %}
         {% else %}
-            <p><em>No header analysis data available for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
+            <p><em>No header data available for <strong>{{ domain | default('N/A') }}</strong>.</em></p>
         {% endif %}
     </div>
-    
+
 
     <div class="section" id="subdomains">
         <h2>Subdomains</h2>

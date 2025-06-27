@@ -14,22 +14,56 @@ from typeguard import typechecked
 class HTTPSecurityHeaders(BaseHTTPClient):
     def __init__(self):
         self.__security_headers_description = {
-            "Content-Security-Policy": "A security standard to prevent a wide range of attacks such as XSS and data injection by specifying domains the browser should trust.",
-            "Strict-Transport-Security": "Forces browsers to use HTTPS with an optional max age and preload directives, helping to prevent man-in-the-middle attacks.",
-            "X-Frame-Options": "Protects against clickjacking by controlling whether a page can be embedded in a frame.",
-            "X-Content-Type-Options": "Prevents MIME type sniffing thereby reducing exposure to drive-by download attacks.",
-            "Referrer-Policy": "Controls the amount of referrer information in requests, enhancing user privacy and security.",
-            "Permissions-Policy": "Manages access to browser features like geolocation, camera, etc., providing granular control to enhance security.",
-            "Cross-Origin-Opener-Policy": "Helps prevent cross-origin attacks like Spectre, isolating resources by controlling if a window can share a browsing context.",
-            "Cross-Origin-Resource-Policy": "Restricts sharing of resources across origins, mitigating risk of data exposure and cross-site attacks.",
-            "Cross-Origin-Embedder-Policy": "Ensures that a document can only load resources that are securely isolated, helping to prevent spectre-like attacks.",
-            "Cache-Control": "Controls the caching behavior of responses, which can mitigate leakage of sensitive data through cached content.",
-            "Expect-CT": "Ensures correct certificate transparency and pinning, aiding in preventing the use of misissued certificates.",
-            "Feature-Policy": "Deprecated, replaced by Permissions-Policy, used to restrict features that browser could use to enhance security.",
-            "Access-Control-Allow-Origin": "Enables Cross-Origin Resource Sharing (CORS) to specify domains allowed to access resources, preventing unauthorized resource access.",
-            "Public-Key-Pins": "Allows the app to pin the public key of the SSL certificate, reducing risk of man-in-the-middle attacks with misissued certificates.",
-            "Content-Type": "Indicates the media type of the resource, crucial for logical handling of the content to prevent security vulnerabilities."
+            "Content-Security-Policy": {
+                "it": "Previene attacchi come XSS e injection specificando le origini fidate da cui il browser può caricare contenuti.",
+                "en": "Prevents attacks like XSS and injection by specifying trusted sources the browser can load content from."
+            },
+            "Strict-Transport-Security": {
+                "it": "Forza l'uso di HTTPS e protegge da attacchi man-in-the-middle.",
+                "en": "Enforces the use of HTTPS and protects against man-in-the-middle attacks."
+            },
+            "X-Frame-Options": {
+                "it": "Protegge contro il clickjacking impedendo l'incorporamento della pagina in frame non autorizzati.",
+                "en": "Protects against clickjacking by preventing the page from being embedded in unauthorized frames."
+            },
+            "X-Content-Type-Options": {
+                "it": "Impedisce il MIME type sniffing, riducendo il rischio di download pericolosi.",
+                "en": "Prevents MIME type sniffing, reducing the risk of malicious file downloads."
+            },
+            "Referrer-Policy": {
+                "it": "Controlla le informazioni di referrer inviate, migliorando privacy e sicurezza.",
+                "en": "Controls the referrer information sent, enhancing privacy and security."
+            },
+            "Permissions-Policy": {
+                "it": "Gestisce l'accesso a funzionalità sensibili del browser (es. fotocamera, microfono).",
+                "en": "Manages access to sensitive browser features (e.g., camera, microphone)."
+            },
+            "Cross-Origin-Opener-Policy": {
+                "it": "Isola il contesto di navigazione tra origini diverse per mitigare attacchi come Spectre.",
+                "en": "Isolates browsing contexts between origins to mitigate attacks like Spectre."
+            },
+            "Cross-Origin-Resource-Policy": {
+                "it": "Restringe la condivisione di risorse con origini diverse, proteggendo da data leaks.",
+                "en": "Restricts resource sharing across origins, protecting against data leaks."
+            },
+            "Cross-Origin-Embedder-Policy": {
+                "it": "Richiede risorse con isolamento forte, migliorando la sicurezza contro attacchi side-channel.",
+                "en": "Requires strongly isolated resources, improving protection against side-channel attacks."
+            },
+            "Cache-Control": {
+                "it": "Gestisce la cache per evitare la memorizzazione di contenuti sensibili su client intermedi.",
+                "en": "Controls caching to prevent storage of sensitive content on intermediate clients."
+            },
+            "Expect-CT": {
+                "it": "Aiuta a garantire la trasparenza dei certificati, prevenendo certificati TLS mal emessi.",
+                "en": "Helps ensure certificate transparency and prevents misissued TLS certificates."
+            },
+            "Access-Control-Allow-Origin": {
+                "it": "Definisce le origini autorizzate ad accedere alle risorse via CORS, evitando accessi non autorizzati.",
+                "en": "Defines the origins allowed to access resources via CORS, preventing unauthorized access."
+            }
         }
+
         self.__security_headers = set(self.__security_headers_description.keys())
         super().__init__(timeout=10)
 
@@ -50,6 +84,9 @@ class HTTPSecurityHeaders(BaseHTTPClient):
             result.raise_for_status
             headers = set(result.headers.keys())
             missing = self.__security_headers - headers
+
+            if len(missing) == 0:
+                return {"safe": True}
 
             for k,v in self.__security_headers_description.items():
                 if k in missing:

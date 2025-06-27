@@ -411,6 +411,10 @@
 
     <div class="section" id="header-analysis">
         <h3>Analisi degli Header</h3>
+        <p>
+            L'<strong>analisi degli header di sicurezza</strong> permette di rilevare <strong>configurazioni errate</strong> o <strong>assenze critiche</strong> che possono esporre un'applicazione a <strong>attacchi comuni</strong> come <strong>XSS</strong>, <strong>clickjacking</strong> e <strong>man-in-the-middle</strong>. Verificarli è essenziale per garantire una corretta <strong>protezione lato server</strong>.
+        </p>
+
         {% if header_analysis is defined %}
             {% if "safe" in header_analysis %}
                 <p>Tutti gli importanti header di sicurezza sono presenti, indicando che l'applicazione web ha implementato le misure necessarie per migliorare il suo livello di sicurezza.</p>
@@ -419,12 +423,12 @@
                 <table>
                     <tr><th>Header</th><th>Descrizione</th></tr>
                     {% for header, value in header_analysis.items() %}
-                        <tr><td><code>{{ header }}</code></td><td>{{ value }}</td></tr>
+                        <tr><td><code>{{ header }}</code></td><td>{{ value["it"] }}</td></tr>
                     {% endfor %}
                 </table>
-            {% else %}
-                <p><em>Nessuna informazione sugli header di sicurezza disponibile per <strong>{{ domain | default('N/A') }}</strong>.</em></p>
             {% endif %}
+        {% else %}
+            <p><em>Nessuna informazione sugli header di sicurezza disponibile per <strong>{{ domain | default('N/A') }}</strong>.</em></p>
         {% endif %}
     </div>
 
