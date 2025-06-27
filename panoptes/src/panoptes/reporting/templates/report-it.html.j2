@@ -678,13 +678,12 @@
                     <tr><td><code>{{ email }}</code></td><td>{{ leaks|length }}</td></tr>
                 {% endfor %}
             </table>
-            <h3>Credenziali Compromesse</h3>
             {% for email, leaks in leaked_credentials.items() %}
                 <div class="leaked">
                     <div class="leaked-start">
                         <table>
                             <tr class="leaked-credentials-header">
-                                <td><h4><code class="bold-transparent-code">{{ email }}</code></h4></td>
+                                <td><h3><code class="bold-transparent-code">{{ email }}</code></h3></td>
                             </tr>
                         </table>
                         <h5>Coinvolgimento in Data Breach</h5>

@@ -15,6 +15,7 @@ from .pdf import html_to_pdf
 from typing import Any
 from bs4 import BeautifulSoup
 import uuid
+import re
 
 
 # Initialize logging
@@ -53,7 +54,8 @@ def _get_domain_from_workspace(workspace: Path) -> str:
     Returns:
         Extracted domain string
     """
-    return workspace.name.split(".")[-2]
+
+    return ".".join(workspace.name.split(".")[:-1])
 
 @typechecked
 def _setup_jinja_environment() -> Environment:
@@ -185,9 +187,13 @@ def add_table_of_contents(html_content: str) -> str:
         # Adjust UL nesting based on heading level
         while level > current_level:
             new_ul = soup.new_tag('ul')
-            current_ul.append(new_ul)
-            current_ul = new_ul
-            current_level += 1
+            last_li = current_ul.contents[-1] if current_ul.contents else None
+            if last_li and last_li.name == 'li':
+                last_li.append(new_ul)
+                current_ul = new_ul
+                current_level += 1
+            else:
+                break  # prevent nesting errors
             
         while level < current_level:
             current_ul = current_ul.parent
@@ -196,6 +202,14 @@ def add_table_of_contents(html_content: str) -> str:
         # Create the TOC item
         li = soup.new_tag('li')
         a = soup.new_tag('a', href=f"#{heading['id']}")
+
+
+        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+
+        # If the tag contains an email, add class to highlight it
+        if re.match(email_pattern, heading.get_text().lower()):
+            a['class'] = 'leaked-email-toc'
+
         a.string = heading.get_text()
         li.append(a)
         current_ul.append(li)
@@ -302,11 +316,7 @@ def generate_report(
         # Render template with current data
         with console.status("Rendering HTML from template..."):
             html = template.render(current_data)
-        
-
-        # Ensure workspace exists and write HTML
-        workspace.mkdir(parents=True, exist_ok=True)
-        html_path.write_text(html)
+    
     else:
         # Use existing HTML file
         if not html_path.exists():
@@ -315,7 +325,11 @@ def generate_report(
         html = html_path.read_text()
 
     with console.status("Adding Table of Contents..."):
-            html = add_table_of_contents(html)  # Add this line
+        html = add_table_of_contents(html) 
+
+    # Ensure workspace exists and write HTML
+    workspace.mkdir(parents=True, exist_ok=True)
+    html_path.write_text(html)
 
     # Generate PDF from HTML
     with console.status("Generating PDF from HTML..."):

@@ -120,6 +120,10 @@ def report(domain, incremental, language, export_from_html, theme):
         if language != "en":
             console.print(f" [bold italic red]- Language[/bold italic red]: The report will be generated in [bold blue]{language}[/bold blue] language.")
         console.print()
+    ws = cfg.get("base_dir") / domain
+    if not ws.exists():
+        console.print(f"[bold red]Error:[/bold red] Workspace for domain [bold blue]{domain}[/bold blue] does not exist. Please run the collect command first.")
+        return
     workflow.run_report(cfg, domain, incremental, language, export_from_html, theme)
     
 

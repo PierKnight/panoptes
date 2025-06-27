@@ -98,7 +98,6 @@
 }
 
 /* Table of Contents */
-/* Table of Contents */
 .toc {
     font-family: Arial, sans-serif;
     margin: 20px 0;
@@ -126,13 +125,36 @@
     text-decoration: underline;
 }
 
+/* Counter for page numbers */
 .toc a::after {
     content: target-counter(attr(href), page);
     float: right;
+    color: #222;             /* or any neutral tone */
+    font-weight: normal;
+    font-style: normal;
 }
 
 .toc > ul > li > a {
-    font-weight: bold;
+    font-weight: bold; /* h1 */
+    color: #104494;
+}
+
+.toc > ul > li > ul > li > a {
+    font-weight: bold; /* h2 */
+    color: #276DCC;
+}
+
+.toc > ul > li > ul > li > ul > li > a,
+.toc > ul > li > ul > li > ul > li > ul > li > a {
+    font-weight: 600; /* h3, h4 */
+}
+
+.toc > ul > li > ul > li > ul > li > a {
+    color: #5B9BE6; /* h3 */
+}
+
+.toc > ul > li > ul > li > ul > li > ul > li > a {
+    color: #8A94A2; /* h4 */
 }
 
 .toc ul ul {
@@ -147,6 +169,11 @@
     padding-left: 60px;
 }
 
+.leaked-email-toc{
+    font-style: italic;
+    font-weight: normal;
+    font-size: 8pt;
+}
 
 
 .client-domain-iei, .client-domain-unical {
@@ -196,7 +223,6 @@ h2 {
 }
 h3 { 
     color: #34495e; 
-
     font-size: 18pt;
 }
 h4 { 
@@ -468,7 +494,7 @@ pre {
     margin-top: 40px;
 }
 
-.leaked-credentials-header h4 {
+.leaked-credentials-header h3 {
     font-size: 13pt;
     color: #f2f2f2;
     margin: 0px;
