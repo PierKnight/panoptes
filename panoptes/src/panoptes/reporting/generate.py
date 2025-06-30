@@ -278,7 +278,7 @@ def generate_report(
         env.globals["theme"] = theme
 
         # Get current report data
-        report_dict = build(workspace, imgbb_api_key=kwargs.get("imgbb_api_key"))
+        report_dict = build(workspace, thumbsnap_api_key=kwargs.get("thumbsnap_api_key", None), imgbb_api_key=kwargs.get("imgbb_api_key", None), is_incremental=incremental)
 
         merged_report = dict()
         incremental_data = dict()

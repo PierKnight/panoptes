@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 # Import project-specific utilities
 from panoptes.utils import logging
 from panoptes.ingestion.imgbb import ImgBB
+from panoptes.ingestion.thumbsnap import Thumbsnap
 from ..utils.misc import get_field_name_from_service_dir_name
 
 # Initialize logger for this module
@@ -49,12 +50,21 @@ class ReportContext:
 class ReportBuilder:
     """Builds security assessment reports from collected workspace data."""
     
-    def __init__(self, imgbb_api_key: Optional[str] = None, is_incremental: bool = False):
-        # Initialize image uploader if API key provided
-        self.imgbb = ImgBB(imgbb_api_key) if imgbb_api_key else None
+    def __init__(self, thumbsnap_api_key: Optional[str] = None, imgbb_api_key: Optional[str] = None, is_incremental: bool = False):
+        self.imgbb = None  # Placeholder for ImgBB
+        self.thumbsnap = None  # Placeholder for Thumbsnap if needed
+
+        if imgbb_api_key:
+            log.info("ImgBB API key provided, initializing image uploader.")
+            self.imgbb = ImgBB(api_key=imgbb_api_key)
+
+        if thumbsnap_api_key:
+            # If no ImgBB key, try Thumbsnap as a fallback
+            log.info("Thumbsnap API key provided, initializing image uploader.")
+            self.thumbsnap = Thumbsnap(api_key=thumbsnap_api_key) if thumbsnap_api_key else None
+        
         self.is_incremental = is_incremental  # Track if this is an incremental report
-        if not imgbb_api_key:
-            log.warning("No ImgBB API key provided, images will not be uploaded.")
+        
     
     def get_git_sha(self) -> str:
         """Get the short git commit hash for the current code version."""
@@ -107,7 +117,9 @@ class ReportBuilder:
     
     def process_images(self, service_dir: Path, ctx: ReportContext) -> None:
         """Handle image processing for services that generate visual reports."""
-        if not self.imgbb:  # Skip if no image uploader configured
+        # Check if at least one image uploader is configured
+        if not self.imgbb and not self.thumbsnap:
+            log.warning("No image upload service configured, skipping image processing")
             return
         
         # Route to appropriate image processor
@@ -115,9 +127,35 @@ class ReportBuilder:
             self._process_mxtoolbox_images(service_dir, ctx)
         elif service_dir.name == "sslshopper":
             self._process_sslshopper_images(service_dir, ctx)
-    
+
+    def _upload_image_with_fallback(self, image_path: str, name: str = None) -> str:
+        """
+        Upload image with fallback support.
+        Tries ImgBB first, falls back to Thumbsnap if it returns None.
+        """
+        image_url = None
+        
+        # Try ImgBB first if available
+        if self.imgbb:
+            image_url = self.imgbb.upload_image(image_path, name=name)
+            if image_url:
+                return image_url
+            else:
+                log.warning(f"ImgBB upload failed for {name}, trying Thumbsnap")
+        
+        # Try Thumbsnap as fallback or primary
+        if self.thumbsnap:
+            image_url = self.thumbsnap.upload_image(image_path)
+            if image_url:
+                return image_url
+            else:
+                log.error(f"Thumbsnap upload also failed for {name}")
+        
+        # If we get here, both failed or were unavailable
+        raise Exception(f"Failed to upload image {name} - all services failed or unavailable")
+
     def _process_mxtoolbox_images(self, service_dir: Path, ctx: ReportContext) -> None:
-        """Upload MXToolbox DMARC/SPF report images to ImgBB."""
+        """Upload MXToolbox DMARC/SPF report images."""
         # Initialize image storage structure
         ctx.images["spf"] = {}
         ctx.images["dmarc"] = {}
@@ -134,19 +172,26 @@ class ReportBuilder:
                 
                 # Extract domain from filename (dmarc_example.com.png)
                 domain = image_file.name.split("_")[1].replace(".png", "")
-                # Upload image and store URL
-                image_url = self.imgbb.upload_image(str(image_file), name=image_file.name)
+                
+                # Upload image with fallback support
+                image_url = self._upload_image_with_fallback(
+                    str(image_file), 
+                    name=image_file.name
+                )
                 ctx.images[image_type][domain] = image_url
                 
             except (IndexError, Exception) as e:
                 log.error(f"Failed to process image {image_file}: {e}")
-    
+
     def _process_sslshopper_images(self, service_dir: Path, ctx: ReportContext) -> None:
         """Process SSL certificate check images from SSLShopper."""
         for image_file in service_dir.glob("*.png"):
             try:
-                # Upload first found image as the SSL check result
-                ctx.images["ssl_check"] = self.imgbb.upload_image(str(image_file))
+                # Upload with fallback support
+                ctx.images["ssl_check"] = self._upload_image_with_fallback(
+                    str(image_file),
+                    name=image_file.name
+                )
                 break  # Only need one image
             except Exception as e:
                 log.error(f"Failed to process SSLShopper image {image_file}: {e}")

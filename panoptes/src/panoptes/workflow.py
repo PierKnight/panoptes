@@ -48,7 +48,8 @@ DEFAULT_COLLECT_SERVICES = [
 
 # Unused but kept for future reference
 DEFAULT_REPORT_SERVICES = [
-    "imgbb"
+    "imgbb",
+    "thumbsnap"
 ]
 
 WORKSPACE_ONLY_SERVICES = [
@@ -177,11 +178,12 @@ def run_report(cfg: Dict[str, Any], domain: str, incremental: bool, language: st
     ws_path = cfg["base_dir"] / domain
     
     imgbb_api_key = cfg["api_keys"].get("imgbb")
+    thumbsnap_api_key = cfg["api_keys"].get("thumbsnap")
 
     if incremental and export_from_html:
         log.warning("Incremental mode is not compatible with HTML export. Ignoring incremental flag.")
         incremental = False
-    html, pdf = reporting.generate.generate_report(ws_path, incremental, language, export_from_html, theme, imgbb_api_key=imgbb_api_key)
+    html, pdf = reporting.generate.generate_report(ws_path, incremental, language, export_from_html, theme, imgbb_api_key=imgbb_api_key, thumbsnap_api_key=thumbsnap_api_key)
     log.info("HTML written to %s", html)
     log.info("PDF written to %s", pdf)
 

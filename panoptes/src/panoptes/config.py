@@ -21,7 +21,8 @@ _DEFAULTS = {
         "abuseipdb": "",
         "dnsdumpster": "",
         "mxtoolbox": "",
-        "imgbb": ""
+        "imgbb": "",
+        "thumbsnap": "",
     },
     "services": {
         "dns-lookup": "Gather DNS records for the domain (via DNSDumpster)",
