@@ -57,6 +57,7 @@ _by Alessandro Monetti (alessandromonetti@outlook.it)_
 - **Poetry**: Dependency management
 - **Rich** & **Click**: CLI output
 - **Requests**: HTTP requests to OSINT APIs
+- **BeatifulSoup**: Scraping from HTML content
 - **Jinja2**: Templating for HTML reports
 - **WeasyPrint**: PDF generation from HTML
 - **Typeguard**: Type checking for better code quality
@@ -88,6 +89,7 @@ poetry install
 Panoptes requires several environment variables to authenticate with various OSINT APIs. **Set these variables before running the application**:
 (replace `xxx` with your actual API keys)
 ```sh
+# OSINT Services
 export INTELX="xxx"         # IntelX (API tier)
 export HAVEIBEENPWNED="xxx" # HaveIBeenPwned (free)
 export C99="xxx"            # C99 (paid)
@@ -96,7 +98,10 @@ export VIRUSTOTAL="xxx"     # VirusTotal (free)
 export SHODAN="xxx"         # Shodan (Freelancer tier)
 export DNSDUMPSTER="xxx"    # DNSDumpster (free)
 export MXTOOLBOX="xxx"      # MXToolbox (free)
+
+# Image Upload Services
 export IMGBB="xxx"          # ImgBB (free)
+export THUMBSNAP="xxx"      # Thumbsnap (free)
 ```
 
 You may wish to add these to your shell profile for convenience.
@@ -109,6 +114,11 @@ Run Panoptes using Poetry:
 ### Activate the virtual environment
 ```sh
 poetry env activate
+```
+
+### Navigate to source folder
+```sh
+cd src/panoptes
 ```
 
 ### Run the CLI
