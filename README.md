@@ -67,7 +67,7 @@ _by Alessandro Monetti (alessandromonetti@outlook.it)_
 
 ## Installation
 
-Panoptes uses [Poetry](https://python-poetry.org/) for package management. [pipx](https://pipx.pypa.io/) is recommended for isolated installs.
+Panoptes uses [Poetry](https://python-poetry.org/) for package management.
 
 ### Prerequisites
 
