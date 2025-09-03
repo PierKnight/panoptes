@@ -23,6 +23,8 @@ _DEFAULTS = {
         "mxtoolbox": "",
         "imgbb": "",
         "thumbsnap": "",
+        "searchengine": "",
+        "programmablesearchengine": ""
     },
     "services": {
         "dns-lookup": "Gather DNS records for the domain (via DNSDumpster)",
@@ -33,7 +35,8 @@ _DEFAULTS = {
         "subdomains": "Enumerate subdomains (using IntelX, VirusTotal, C99)",
         "exposed-ports-cve": "Find open ports and CVEs (Shodan + CVE database); needs subdomains",
         "compromised-hosts": "Check if hosts are blacklisted/abused (AbuseIPDB)",
-        "compromised-credentials": "Find leaked credentials (IntelX + Have I Been Pwned)"
+        "compromised-credentials": "Find leaked credentials (IntelX + Have I Been Pwned)",
+        "sensible-endpoints": "Find sensible endpoints/leaked information (Google Dork)"
     }
 }
 

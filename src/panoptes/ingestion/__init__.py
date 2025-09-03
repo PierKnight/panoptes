@@ -25,6 +25,7 @@ from .httpsecurityheaders import HTTPSecurityHeaders    # noqa: F401
 from .sslshopper import SSLShopper    # noqa: F401
 from .c99 import C99    # noqa: F401
 from .shodan import Shodan    # noqa: F401
+from .googlehacking import GoogleHacking 
 
 # … add the rest of your adapters …
 
@@ -42,6 +43,7 @@ _REGISTRY: Dict[str, Type] = {
     "httpsecurityheaders": HTTPSecurityHeaders,
     "sslshopper": SSLShopper,
     "shodan": Shodan,
+    "googlehacking": GoogleHacking
     # Add more clients as needed
 }
 

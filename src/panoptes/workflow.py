@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple
 from typeguard import typechecked
 
+from panoptes.ingestion.googlehacking import GoogleHacking
 from panoptes.persistence.paths import Workspace
 from panoptes.ingestion import get_client
 from panoptes.processing import grooming
@@ -43,6 +44,7 @@ DEFAULT_COLLECT_SERVICES = [
     "haveibeenpwned",
     "abuseipdb",
     "virustotal",
+    "googlehacking"
     # add/remove as you wire them
 ]
 
@@ -81,7 +83,8 @@ SERVICE_WORKFLOW = {
     "subdomains": ["subdomains"],
     "exposed-ports-cve": ["shodan"],
     "compromised-hosts": ["abuseipdb"],
-    "compromised-credentials": ["intelx", "haveibeenpwned"]
+    "compromised-credentials": ["intelx", "haveibeenpwned"],
+    "sensible-endpoints": ["googlehacking"]
 }
 
 @typechecked
@@ -99,6 +102,10 @@ def get_workflow_steps(services_to_run: Optional[List[str]]) -> Set[str]:
         return {s for steps in SERVICE_WORKFLOW.values() for s in steps}
     steps = set()
     for service in services_to_run:
+        service_flow = SERVICE_WORKFLOW.get(service, [])
+        if not service_flow: #if the service workflow is not available
+            console.print(f"[bold red]Service Not Found[/bold red]: {service}")
+            return set()
         steps.update(SERVICE_WORKFLOW.get(service, []))
     return steps
 
@@ -135,6 +142,9 @@ def run_collect(cfg: Dict[str, Any], domains: tuple, mail_domain: Optional[str],
     if "sslshopper" in steps_to_run:
         print_rule("[bold green]SSL Certificate Analysis[/bold green]")
         run_sslshopper(ws, website_url, clients.get("sslshopper"))
+    if "googledork" in steps_to_run:
+        print_rule("[bold green]Google Hacking Analysis[/bold green]")
+        run_sslshopper(ws, website_url, clients.get("sslshopper"))
 
     # Subdomains block
     subdomains = []
@@ -163,6 +173,9 @@ def run_collect(cfg: Dict[str, Any], domains: tuple, mail_domain: Optional[str],
         credentials_path = run_intelx(ws, cfg, mail_domain, clients.get("intelx"))
     if "haveibeenpwned" in steps_to_run and credentials_path:
         run_haveibeenpwned(ws, credentials_path, cfg, clients.get("haveibeenpwned"))
+    if "googlehacking" in steps_to_run:
+        print(clients.get("googlehacking"))
+        run_google_hacking(ws, cfg, website_url, clients.get("googlehacking"))
 
     ws.cleanup_empty_dirs()
     log.info("Investigation finished in %.1fs", (datetime.now() - started).total_seconds())
@@ -202,12 +215,35 @@ def instantiate_clients(cfg: Dict[str, Any], services: list[str]) -> Dict[str, A
     """
     Instantiates client objects for each enabled OSINT service using provided API keys.
     """
+
+    def get_service_keys(service: str):
+        """
+        Given a service, it tries to get the main api_key based on it's name
+        and also keys related to it for example <SERVICE_NAME>_<ANYTHING ELSE>
+        """
+        api_keys : Dict[str, str] = cfg["api_keys"]
+        keys = dict()
+        keys["api_key"] = api_keys.get(service)
+        for key, value in api_keys.items():
+            if re.match(fr"^{service}_", key.lower()):
+                keys[key] = value
+        return keys
+
+
+
+
+
     clients = {}
     for name in services:
         try:
             cls = get_client(name)
             key = cfg["api_keys"].get(name)
-            clients[name] = cls(api_key=key) if key else cls()
+
+            args = dict()
+
+            if key: #add api key arg if a key is found 
+                args["api_key"] = key
+            clients[name] = cls(**args)
         except Exception as exc:
             log.error("Cannot create client %s: %s", name, exc)
     return clients
@@ -326,6 +362,24 @@ def run_sslshopper(ws: Workspace, website_url: str, sslshopper: Optional[Any]) -
             info["certificate_image"].save(ws.file("sslshopper", "certificate_chain.png"))
             save_json(ws, "sslshopper", "certificate_info.json", info["certificate_json"])
             console.print(f"SSL Certificate Chain results saved to [bold blue]{ws.file('sslshopper', 'certificate_info.json')}[/bold blue]")
+
+@typechecked
+def run_google_hacking(ws: Workspace, cfg: Dict[str, Any], website_url: str, googlehacking: Optional[GoogleHacking]) -> None:
+    """
+    Performs Google Hacking to find sensible information regarding the website
+    """
+    if not googlehacking:
+        return
+    
+    with console.status("[bold green]Running Google Hacking analysis...[/bold green]"):
+        googlehacking.check_for_sensible_data(website_url, searchengine_key="", programmable_searchengine_keys="erer;ror")
+        # Only proceed if expected keys are present
+        """if "certificate_json" in info and "certificate_image" in info:
+            info["certificate_image"].save(ws.file("sslshopper", "certificate_chain.png"))
+            save_json(ws, "sslshopper", "certificate_info.json", info["certificate_json"])
+            console.print(f"SSL Certificate Chain results saved to [bold blue]{ws.file('sslshopper', 'certificate_info.json')}[/bold blue]")
+        """
+
 
 @typechecked
 def get_subdomains(domains: tuple, clients: Dict[str, Any]) -> List[str]:
