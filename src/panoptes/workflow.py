@@ -372,7 +372,11 @@ def run_google_hacking(ws: Workspace, cfg: Dict[str, Any], website_url: str, goo
         return
     
     with console.status("[bold green]Running Google Hacking analysis...[/bold green]"):
-        googlehacking.check_for_sensible_data(website_url, searchengine_key="", programmable_searchengine_keys="erer;ror")
+        
+        search_engine_key = cfg["api_keys"]["searchengine"]
+        programmable_search_engine_key = cfg["api_keys"]["programmablesearchengine"]
+
+        googlehacking.check_for_sensible_data(website_url, searchengine_key=search_engine_key, programmable_searchengine_keys=programmable_search_engine_key)
         # Only proceed if expected keys are present
         """if "certificate_json" in info and "certificate_image" in info:
             info["certificate_image"].save(ws.file("sslshopper", "certificate_chain.png"))
