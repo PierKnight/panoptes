@@ -1,7 +1,8 @@
 import click, logging
-from panoptes import config, workflow, utils
+from panoptes import workflow, utils
 
 from pathlib import Path
+from panoptes.config import config
 from panoptes.utils.console import console
 
 @click.group()
@@ -131,7 +132,7 @@ def report(domain, incremental, language, export_from_html, theme):
 def services():
     """List available services."""
     cfg = config.load()
-    services = cfg.get("services", {})
+    services = workflow.SERVICES
 
     if not services:
         console.print("No services available.", style="bold red")

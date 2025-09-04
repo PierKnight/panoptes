@@ -74,6 +74,19 @@ INTELX_BUCKETS = [
     "documents.public.scihub"
 ]
 
+SERVICES = {
+    "dns-lookup": "Gather DNS records for the domain (via DNSDumpster)",
+    "spf-dmarc": "Check SPF and DMARC records (internal logic + MXToolbox)",
+    "ssl-check": "Validate SSL certificate chain and info (via SSLShopper)",
+    "tech-stack": "Analyze web technologies used by the domain (Wappalyzer)",
+    "http-headers": "Check missing HTTP security headers (internal logic)",
+    "subdomains": "Enumerate subdomains (using IntelX, VirusTotal, C99)",
+    "exposed-ports-cve": "Find open ports and CVEs (Shodan + CVE database); needs subdomains",
+    "compromised-hosts": "Check if hosts are blacklisted/abused (AbuseIPDB)",
+    "compromised-credentials": "Find leaked credentials (IntelX + Have I Been Pwned)",
+    "sensible-endpoints": "Find sensible endpoints/leaked information (Google Dork)"
+}
+
 SERVICE_WORKFLOW = {
     "dns-lookup": ["dnsdumpster"],
     "spf-dmarc": ["mxtoolbox"],
@@ -142,9 +155,6 @@ def run_collect(cfg: Dict[str, Any], domains: tuple, mail_domain: Optional[str],
     if "sslshopper" in steps_to_run:
         print_rule("[bold green]SSL Certificate Analysis[/bold green]")
         run_sslshopper(ws, website_url, clients.get("sslshopper"))
-    if "googledork" in steps_to_run:
-        print_rule("[bold green]Google Hacking Analysis[/bold green]")
-        run_sslshopper(ws, website_url, clients.get("sslshopper"))
 
     # Subdomains block
     subdomains = []
@@ -173,9 +183,10 @@ def run_collect(cfg: Dict[str, Any], domains: tuple, mail_domain: Optional[str],
         credentials_path = run_intelx(ws, cfg, mail_domain, clients.get("intelx"))
     if "haveibeenpwned" in steps_to_run and credentials_path:
         run_haveibeenpwned(ws, credentials_path, cfg, clients.get("haveibeenpwned"))
+
+
     if "googlehacking" in steps_to_run:
-        print(clients.get("googlehacking"))
-        run_google_hacking(ws, cfg, website_url, clients.get("googlehacking"))
+        run_google_hacking(ws, cfg, domains, clients.get("googlehacking"))
 
     ws.cleanup_empty_dirs()
     log.info("Investigation finished in %.1fs", (datetime.now() - started).total_seconds())
@@ -364,7 +375,7 @@ def run_sslshopper(ws: Workspace, website_url: str, sslshopper: Optional[Any]) -
             console.print(f"SSL Certificate Chain results saved to [bold blue]{ws.file('sslshopper', 'certificate_info.json')}[/bold blue]")
 
 @typechecked
-def run_google_hacking(ws: Workspace, cfg: Dict[str, Any], website_url: str, googlehacking: Optional[GoogleHacking]) -> None:
+def run_google_hacking(ws: Workspace, cfg: Dict[str, Any], domains: tuple, googlehacking: Optional[GoogleHacking]) -> None:
     """
     Performs Google Hacking to find sensible information regarding the website
     """
@@ -373,16 +384,10 @@ def run_google_hacking(ws: Workspace, cfg: Dict[str, Any], website_url: str, goo
     
     with console.status("[bold green]Running Google Hacking analysis...[/bold green]"):
         
-        search_engine_key = cfg["api_keys"]["searchengine"]
-        programmable_search_engine_key = cfg["api_keys"]["programmablesearchengine"]
-
-        googlehacking.check_for_sensible_data(website_url, searchengine_key=search_engine_key, programmable_searchengine_keys=programmable_search_engine_key)
-        # Only proceed if expected keys are present
-        """if "certificate_json" in info and "certificate_image" in info:
-            info["certificate_image"].save(ws.file("sslshopper", "certificate_chain.png"))
-            save_json(ws, "sslshopper", "certificate_info.json", info["certificate_json"])
-            console.print(f"SSL Certificate Chain results saved to [bold blue]{ws.file('sslshopper', 'certificate_info.json')}[/bold blue]")
-        """
+        found_dorks = googlehacking.check_for_sensible_data(domains, cfg)
+        save_json(ws, "google_hacking", "found_dorks.json", found_dorks)
+        console.print(f"Dorks found saved to [bold blue]{ws.file('google_hacking', 'found_dorks.json')}[/bold blue]")
+    
 
 
 @typechecked
