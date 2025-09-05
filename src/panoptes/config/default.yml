@@ -21,8 +21,7 @@ googlehacking:
   max_workers: 20 #total threads to check for dorks
   timeout: 10 #maximum times for each dork request
   dork_file: #optional files used for custom dorks to test
-    - ~/dork_file
   exploitdb_categories: #dork retrieved by category from https://www.exploit-db.com/google-hacking-database
     "Sensitive Directories": 
       max_dorks: 5 #process the first n dorks
-      authors: #filter based on author, if empty it means every author is valid
+  exploitdb_author_whitelist: #filter based on author, if empty it means every author is valid

@@ -96,42 +96,50 @@ class GoogleHacking():
     #method that collects dorks from dumped database based on configuration file
     def __collect_exploitdb_dork(self, cfg, on_dork: Callable[[str], None]):
         exploitdb_categories = cfg["googlehacking"].get("exploitdb_categories", dict())
-
+        
         #end collections if not a single category is configured
         if not exploitdb_categories or len(exploitdb_categories) == 0:
             log.info(f"No ExploitDB category set")
             return
         
-        #keeps track the amount of dorks found by category
-        category_count = {category: 0 for category in exploitdb_categories.keys()}
+        exploitdb_author_whitelist_set = set(
+            cfg["googlehacking"].get("exploitdb_author_whitelist") or []
+        )
+
+        configured_categories = [category for category in exploitdb_categories.keys() if category in EXPLOITDB_CATEGORIES]
         
+        #keeps track the amount of dorks found by category
+        category_count = {category: 0 for category in configured_categories}
         
 
         #max number of dorks per category (default 5)
-        max_dorks = {category: exploitdb_categories[category].get("max_dorks", 5) for category in exploitdb_categories.keys()}
+        max_dorks = {category: exploitdb_categories[category].get("max_dorks", 5) for category in configured_categories}
         #categories that completed their dorks
         complete_categories = 0
         for i, dork in enumerate(self.__iter_queries_from_exploitdb(), 1):
             if complete_categories >= len(category_count):
                 break
+            
+            #skip dork if it isn't a whitelisted author
+            if len(exploitdb_author_whitelist_set) > 0 and dork.author not in exploitdb_author_whitelist_set:
+                continue
 
             category = dork.category
 
-            if category not in exploitdb_categories or category_count[category] >= max_dorks[category]:
+            #skip dork if it isn't a configured category or we reached the dork cap for that category
+            if category not in configured_categories or category_count[category] >= max_dorks[category]:
                 continue
             category_count[category] += 1
 
             if category_count[category] > max_dorks[category]:
                 complete_categories += 1
 
-            print(f"FOUND: {category}: {dork.query}")
-
             on_dork(dork.query)
 
     #collects dorks defined in files
     def __collect_file_dork(self, cfg, on_dork: Callable[[str], None]):
 
-        dork_files = cfg["googlehacking"].get("dork_file", [])
+        dork_files = cfg["googlehacking"].get("dork_file", []) or []
 
         for path_str in dork_files: 
             file_path = Path(os.path.expanduser(path_str))
@@ -153,13 +161,13 @@ class GoogleHacking():
         return f"site:{domain} {dork}"
 
     #method used to return all results agains docks
-    def check_for_sensible_data(self, domains: tuple, cfg: dict[str, any]):
+    def check_for_sensible_data(self, domains: tuple, cfg: dict[str, any], max_workers:int = 20, timeout:int = 10):
 
         
         searchengine_key: str = cfg["api_keys"]["searchengine"]
         programmable_searchengine_keys: str = cfg["api_keys"]["programmablesearchengine"]
-        max_workers: int = cfg["googlehacking"]["max_workers"]
-        timeout: int = cfg["googlehacking"]["timeout"]
+        max_workers: int = cfg["googlehacking"].get("max_workers", max_workers)
+        timeout: int = cfg["googlehacking"].get("timeout",timeout)
 
 
         searchengine_keys_list = programmable_searchengine_keys.split(";")
@@ -181,9 +189,6 @@ class GoogleHacking():
             self.__collect_file_dork(cfg, add_new_future)
             #add a new thread in the pool for each exploitdb dork found
             self.__collect_exploitdb_dork(cfg, add_new_future)
-
-
-            print(future_to_dork)
             
             results = dict()
 
@@ -200,6 +205,7 @@ class GoogleHacking():
 
             found_dorks = dict(sorted(results.items()))
             return found_dorks
+        
         #https://github.com/ChillHackLab/Google-Dorking/tree/main good place for new dorcs
 
 
